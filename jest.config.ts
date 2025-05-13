@@ -1,4 +1,4 @@
-import type { Config } from '@jest/types'
+import type { Config } from 'jest'
 
 const config: Config.InitialOptions = {
   preset: 'ts-jest',

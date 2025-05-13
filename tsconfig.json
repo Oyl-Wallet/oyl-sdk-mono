@@ -1,18 +1,25 @@
 {
   "compilerOptions": {
+    "target": "ES2020",
     "module": "CommonJS",
-    "moduleResolution": "Node",
-    "target": "ES2022",
+    "lib": ["ES2020"],
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "strict": true,
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "outDir": "lib",
+    "rootDir": "src",
+    "composite": true,
+    "incremental": true,
     "resolveJsonModule": true,
     "noImplicitAny": false,
-    "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
-    "sourceMap": true,
-    "outDir": "./lib",
-    "declaration": true,
     "importHelpers": true,
-    "skipLibCheck": true,
-    "baseUrl": "./src",
+    "baseUrl": ".",
     "paths": {
       "@collectible/*": ["collectible/*"],
       "@account/*": ["account/*"],
@@ -21,11 +28,12 @@
       "@rune/*": ["rune/*"],
       "@signer/*": ["signer/*"],
       "@utxo/*": ["utxo/*"],
-      "@alkanes/*": ["alkanes/*"]
+      "@alkanes/*": ["alkanes/*"],
+      "@oyl-sdk/*": ["packages/*/src"]
     }
   },
-  "include": ["src/**/*.ts", "src/**/*.wasm"],
-  "exclude": ["node_modules", "src/**/*.test.ts", "src/__fixtures__"],
+  "include": ["src/**/*.ts", "src/**/*.wasm", "packages/runes/src/index.test.ts", "packages/runes/src/index.ts", "packages/runes/src/rune.ts", "packages/rpc-client/src/alkanes.ts", "packages/rpc-client/src/esplora.ts", "packages/rpc-client/src/interfaces.ts", "packages/rpc-client/src/metashrew.ts", "packages/rpc-client/src/ord.ts", "packages/rpc-client/src/provider.ts", "packages/rpc-client/src/sandshrew.ts"],
+  "exclude": ["node_modules", "lib", "**/*.test.ts", "src/__fixtures__"],
   "ts-node": {
     "esm": true
   }

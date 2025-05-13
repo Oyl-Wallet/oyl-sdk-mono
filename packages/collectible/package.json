@@ -1,0 +1,26 @@
+{
+  "name": "@oyl-sdk/collectible",
+  "version": "0.0.1",
+  "description": "Collectible functionality for OYL SDK",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest",
+    "lint": "eslint src --ext .ts",
+    "format": "prettier --write \"src/**/*.ts\""
+  },
+  "dependencies": {
+    "@oyl-sdk/core": "workspace:*",
+    "@oyl-sdk/btc": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/jest": "29.5.14",
+    "@types/node": "20.17.12",
+    "jest": "29.7.0",
+    "ts-jest": "29.2.5",
+    "typescript": "4.9.5",
+    "eslint": "^8.56.0",
+    "prettier": "2.8.8"
+  }
+} 

@@ -1,0 +1,30 @@
+{
+  "name": "@oyl-sdk/btc",
+  "version": "1.0.0",
+  "description": "Bitcoin functionality for Oyl SDK",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc -w",
+    "test": "jest",
+    "clean": "rm -rf lib",
+    "lint": "eslint src --ext .ts"
+  },
+  "dependencies": {
+    "@oyl-sdk/core": "workspace:*",
+    "bitcoinjs-lib": "6.1.7",
+    "bip32": "4.0.0",
+    "bip39": "3.1.0"
+  },
+  "peerDependencies": {
+    "@types/node": "20.17.12",
+    "typescript": "4.9.5"
+  },
+  "devDependencies": {
+    "@types/jest": "29.5.14",
+    "jest": "29.7.0",
+    "ts-jest": "29.2.5",
+    "typescript": "4.9.5"
+  }
+} 

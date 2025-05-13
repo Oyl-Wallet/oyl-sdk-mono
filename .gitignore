@@ -1,4 +1,39 @@
+# Dependencies
 node_modules
+.pnpm-store
+
+# Build outputs
+lib
+dist
+*.tsbuildinfo
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Testing
+coverage
+.nyc_output
+
+# Misc
+.DS_Store
+*.pem
+
 .env
 .idea/
 *.iml
@@ -7,7 +42,6 @@ node_modules
 src.ts/Untitled-2.json
 src.ts/Untitled-1.json
 logs.txt
-yarn-error.log
 package-lock.json
 memory-bank/activeContext.md
 memory-bank/progress.md

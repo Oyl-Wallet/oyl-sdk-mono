@@ -1,8 +1,74 @@
 [![npm version](https://badge.fury.io/js/%40oyl%2Fsdk.svg)](https://www.npmjs.com/package/@oyl/sdk)
 
-# Oyl Sdk
+# Oyl SDK Monorepo
 
-> A comphrenesive sdk that features easy to use bitcoin functions to build and brodcast btc transactions.
+This is a monorepo containing the Oyl SDK packages. The SDK provides tools for interacting with various Bitcoin protocols including BRC-20, Runes, and Alkanes.
+
+## Packages
+
+- `@oyl-sdk/core` - Core functionality including account management and provider interfaces
+- `@oyl-sdk/brc20` - BRC-20 protocol implementation
+- `@oyl-sdk/runes` - Runes protocol implementation
+- `@oyl-sdk/alkanes` - Alkanes protocol implementation
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js >= 20.0.0
+- pnpm >= 8.15.0
+
+### Installation
+
+```bash
+# Install dependencies
+pnpm install
+
+# Build all packages
+pnpm build
+
+# Run tests
+pnpm test
+```
+
+### Development
+
+```bash
+# Start development mode
+pnpm dev
+
+# Run tests in watch mode
+pnpm test --watch
+```
+
+## Project Structure
+
+```
+oyl-sdk/
+├── packages/
+│   ├── core/                    # Shared core functionality
+│   │   ├── src/
+│   │   │   ├── account/        # Account management
+│   │   │   ├── provider/       # Provider interfaces
+│   │   │   ├── utils/          # Common utilities
+│   │   │   └── types/          # Shared TypeScript types
+│   │   └── package.json
+│   │
+│   ├── brc20/                  # BRC-20 protocol implementation
+│   ├── runes/                  # Runes protocol implementation
+│   └── alkanes/               # Alkanes protocol implementation
+│
+├── examples/                   # Example applications
+│   ├── brc20-dapp/            # BRC-20 example
+│   ├── runes-dapp/            # Runes example
+│   └── alkanes-dapp/          # Alkanes example
+│
+└── package.json               # Root package.json for workspace
+```
+
+## License
+
+MIT
 
 ## Table of contents
 
