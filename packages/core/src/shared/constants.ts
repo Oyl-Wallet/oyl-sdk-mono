@@ -1,7 +1,9 @@
 import { MnemonicToAccountOptions } from '..'
 import * as bitcoin from 'bitcoinjs-lib'
 import * as dotenv from 'dotenv'
-dotenv.config()
+import * as path from 'path'
+
+dotenv.config({ path: path.resolve(__dirname, '../../../../.env') })
 
 export const UTXO_DUST = 546
 

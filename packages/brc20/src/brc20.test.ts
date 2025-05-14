@@ -13,6 +13,63 @@ import * as bitcoin from 'bitcoinjs-lib'
 import { toXOnly } from 'bitcoinjs-lib/src/psbt/bip371'
 import { transferEstimate, commit, reveal, transfer, send } from './brc20'
 
+// Mock the core module
+jest.mock('@oyl-sdk/core', () => {
+  const originalModule = jest.requireActual('@oyl-sdk/core')
+  return {
+    ...originalModule,
+    getOutputValueByVOutIndex: jest.fn().mockResolvedValue({
+      value: 100000,
+      script: '0014a60869f0dbcf1dc659c9cecbaf8050135ea9e8cd', // P2WPKH script
+    }),
+    Provider: jest.fn().mockImplementation(() => ({
+      network: bitcoin.networks.regtest,
+      sandshrew: {
+        multiCall: jest.fn().mockResolvedValue([
+          {
+            result: {
+              txid: '72e22e25fa587c01cbd0a86a5727090c9cdf12e47126c99e35b24185c395b276',
+              version: 2,
+              locktime: 0,
+              vin: [],
+              vout: [
+                {
+                  scriptpubkey: '0014a60869f0dbcf1dc659c9cecbaf8050135ea9e8cd', // P2WPKH script
+                  scriptpubkey_address: 'bcrt1qw508d6qejxtdg4y5r3zarvary0c5xw7kygt080',
+                  value: 100000,
+                },
+              ],
+              size: 223,
+              weight: 562,
+              fee: 452,
+              status: false,
+            },
+          },
+          {
+            result: {
+              txid: '72e22e25fa587c01cbd0a86a5727090c9cdf12e47126c99e35b24185c395b277',
+              version: 2,
+              locktime: 0,
+              vin: [],
+              vout: [
+                {
+                  scriptpubkey: '0014a60869f0dbcf1dc659c9cecbaf8050135ea9e8cd', // P2WPKH script
+                  scriptpubkey_address: 'bcrt1qw508d6qejxtdg4y5r3zarvary0c5xw7kygt080',
+                  value: 546,
+                },
+              ],
+              size: 223,
+              weight: 562,
+              fee: 452,
+              status: false,
+            },
+          },
+        ]),
+      },
+    })),
+  }
+})
+
 const account: Account = mnemonicToAccount({
   mnemonic:
     'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about',
@@ -92,54 +149,6 @@ const testFormattedUtxos: GatheredUtxos = {
   ],
   totalAmount: 200000,
 }
-
-jest
-  .spyOn(require('@oyl-sdk/core'), 'getOutputValueByVOutIndex')
-  .mockResolvedValue({
-    value: 100000,
-    script: testFormattedUtxos.utxos[0].scriptPk,
-  })
-
-jest.spyOn(provider.sandshrew, 'multiCall').mockResolvedValue([
-  {
-    result: {
-      txid: '72e22e25fa587c01cbd0a86a5727090c9cdf12e47126c99e35b24185c395b276',
-      version: 2,
-      locktime: 0,
-      vin: [],
-      vout: [
-        {
-          scriptpubkey: outputScript.toString('hex'),
-          scriptpubkey_address: account.taproot.address,
-          value: testFormattedUtxos.utxos[0].satoshis,
-        },
-      ],
-      size: 223,
-      weight: 562,
-      fee: 452,
-      status: false,
-    },
-  },
-  {
-    result: {
-      txid: '72e22e25fa587c01cbd0a86a5727090c9cdf12e47126c99e35b24185c395b277',
-      version: 2,
-      locktime: 0,
-      vin: [],
-      vout: [
-        {
-          scriptpubkey: outputScript.toString('hex'),
-          scriptpubkey_address: account.taproot.address,
-          value: 546,
-        },
-      ],
-      size: 223,
-      weight: 562,
-      fee: 452,
-      status: false,
-    },
-  },
-])
 
 describe('brc20', () => {
   it('transferEstimate', async () => {
