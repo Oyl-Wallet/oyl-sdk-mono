@@ -15,7 +15,8 @@
     "@oyl-sdk/core": "workspace:*",
     "bip32": "4.0.0",
     "bip39": "3.1.0",
-    "bitcoinjs-lib": "6.1.7"
+    "bitcoinjs-lib": "6.1.7",
+    "dotenv": "16.3.1"
   },
   "devDependencies": {
     "@types/jest": "29.5.14",
