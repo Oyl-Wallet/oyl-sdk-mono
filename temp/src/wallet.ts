@@ -5,7 +5,7 @@ import {
   Provider,
   Account,
   Signer,
-} from '..'
+} from '../dist'
 import { DEFAULT_PROVIDER, TEST_WALLET } from './constants'
 
 export type NetworkType = 'mainnet' | 'regtest' | 'oylnet'

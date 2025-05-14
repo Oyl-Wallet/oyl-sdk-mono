@@ -1,5 +1,5 @@
 import { Command } from 'commander'
-import { Provider } from '..'
+import { Provider } from '../../../cli/dist'
 import { timeout } from '../shared/utils'
 import { Wallet } from './wallet'
 import * as utxo from '../utxo'

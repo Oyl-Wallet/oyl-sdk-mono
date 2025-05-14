@@ -1,5 +1,5 @@
 import * as bitcoin from 'bitcoinjs-lib'
-import { Provider } from '..'
+import { Provider } from '../dist'
 
 export const DEFAULT_PROVIDER = {
   alkanes: new Provider({

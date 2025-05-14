@@ -11,29 +11,9 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "composite": true,
-    "incremental": true,
     "resolveJsonModule": true,
     "noImplicitAny": false,
     "allowSyntheticDefaultImports": true,
-    "importHelpers": true,
-    "baseUrl": ".",
-    "paths": {
-      "@collectible/*": ["collectible/*"],
-      "@account/*": ["account/*"],
-      "@btc/*": ["btc/*"],
-      "@brc20/*": ["brc20/*"],
-      "@rune/*": ["rune/*"],
-      "@signer/*": ["signer/*"],
-      "@utxo/*": ["utxo/*"],
-      "@alkanes/*": ["alkanes/*"],
-      "@oyl-sdk/*": ["packages/*/src"],
-      "@rpc-client/*": ["rpc-client/*"]
-    }
-  },
-  "include": ["src/**/*.ts", "src/**/*.wasm"],
-  "exclude": ["node_modules", "lib", "**/*.test.ts", "src/__fixtures__", "packages/**/*"],
-  "ts-node": {
-    "esm": true
+    "importHelpers": true
   }
 }

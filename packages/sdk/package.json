@@ -2,13 +2,13 @@
   "name": "@oyl-sdk",
   "version": "1.0.0",
   "description": "Oyl SDK - Complete package with all features",
-  "main": "lib/index.js",
-  "types": "lib/index.d.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
     "dev": "tsc -w",
     "test": "jest",
-    "clean": "rm -rf lib",
+    "clean": "rm -rf dist",
     "lint": "eslint src --ext .ts"
   },
   "dependencies": {
@@ -20,7 +20,7 @@
     "@oyl-sdk/collectible": "workspace:*",
     "@oyl-sdk/alkanes": "workspace:*",
     "@oyl-sdk/rpc-client": "workspace:*",
-    "@oyl-sdk/cli": "workspace:*"
+    "tslib": "2.6.2"
   },
   "peerDependencies": {
     "@types/node": "20.17.12",

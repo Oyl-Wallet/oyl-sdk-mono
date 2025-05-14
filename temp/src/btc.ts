@@ -1,6 +1,6 @@
 import { Command } from 'commander'
-import * as btc from '../btc'
-import * as utxo from '../utxo'
+import * as btc from '@oyl-sdk/btc'
+import * as utxo from '../../core/src/utxo'
 import { Wallet } from './wallet'
 
 export const btcSend = new Command('send')

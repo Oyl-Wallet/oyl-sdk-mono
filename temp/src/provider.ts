@@ -1,6 +1,6 @@
 import { Command } from 'commander'
 import { DEFAULT_PROVIDER } from './constants'
-import { Provider } from '..'
+import { Provider } from '../../../cli/dist'
 import { AlkanesCommand } from "./alkane";
 import { metashrew } from "../rpclient/alkanes";
 

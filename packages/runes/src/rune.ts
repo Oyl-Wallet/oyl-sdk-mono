@@ -21,6 +21,7 @@ import { toXOnly } from 'bitcoinjs-lib/src/psbt/bip371'
 import { LEAF_VERSION_TAPSCRIPT } from 'bitcoinjs-lib/src/payments/bip341'
 import { encodeRunestone, RunestoneSpec } from '@magiceden-oss/runestone-lib'
 import { OrdOutput } from '@oyl-sdk/core'
+import { OrdOutputRune } from '@oyl-sdk/core'
 //import { rune } from 'index'
 
 interface OrdOutputs {
@@ -237,7 +238,7 @@ export const createSendPsbt = async ({
 
     return { psbt: formattedPsbtTx.toBase64() }
   } catch (error) {
-    throw new OylTransactionError(error)
+    throw new OylTransactionError(error as Error)
   }
 }
 
@@ -368,7 +369,7 @@ export const createMintPsbt = async ({
 
     return { psbt: formattedPsbtTx.toBase64() }
   } catch (error) {
-    throw new OylTransactionError(error)
+    throw new OylTransactionError(error as Error)
   }
 }
 
@@ -528,7 +529,7 @@ export const createEtchCommit = async ({
 
     return { psbt: formattedPsbtTx.toBase64(), script: outputScript }
   } catch (error) {
-    throw new OylTransactionError(error)
+    throw new OylTransactionError(error as Error)
   }
 }
 
@@ -657,7 +658,7 @@ export const createEtchReveal = async ({
       fee: revealTxChange,
     }
   } catch (error) {
-    throw new OylTransactionError(error)
+    throw new OylTransactionError(error as Error)
   }
 }
 
@@ -670,8 +671,8 @@ export const getRuneOutpoints = async ({
   provider: Provider
   runeId: string
 }): Promise<SingleRuneOutpoint[]> => {
-  const addressOutpoints = await provider.ord.getOrdData(address)
-  const spacedRuneName = await provider.ord.getRuneById(runeId)
+  const addressOutpoints = await provider.ord.getOrdData(address) as { outputs: string[] }
+  const spacedRuneName = await provider.ord.getRuneById(runeId) as { entry: { spaced_rune: string } }
   const runeName = spacedRuneName.entry.spaced_rune
 
   const ordOutputs = await batchOrdOutput({
@@ -703,19 +704,21 @@ const mapRuneBalances = async ({
     const [txId, txIndex] = ordOutputs[i].result.output!.split(':')
     singleRuneOutpoint['pkscript'] = (
       await provider.esplora.getTxInfo(txId)
-    ).vout[txIndex].scriptpubkey
+    ).vout[Number(txIndex)].scriptpubkey
     singleRuneOutpoint['balances'] = []
     singleRuneOutpoint['decimals'] = []
     singleRuneOutpoint['rune_ids'] = []
-    for (const rune in ordOutputs[i].result.runes) {
+    const runes = ordOutputs[i].result.runes as Record<string, OrdOutputRune>
+    for (const rune in runes) {
       singleRuneOutpoint['balances'].push(
-        ordOutputs[i].result.runes[rune].amount
+        runes[rune].amount
       )
       singleRuneOutpoint['decimals'].push(
-        ordOutputs[i].result.runes[rune].divisibility
+        runes[rune].divisibility
       )
+      const runeInfo = await provider.ord.getRuneByName(rune) as { id: string }
       singleRuneOutpoint['rune_ids'].push(
-        (await provider.ord.getRuneByName(rune)).id
+        runeInfo.id
       )
     }
     runeOutpoints.push(singleRuneOutpoint)
@@ -743,7 +746,7 @@ const batchOrdOutput = async ({
     for (let i = 0; i < results.length; i++) {
       results[i].result['output'] = batch[i]
     }
-    const filteredResult = results.filter((output) =>
+    const filteredResult = results.filter((output: OrdOutputs) =>
       Object.keys(output.result.runes).includes(rune_name)
     )
 
@@ -805,7 +808,7 @@ export const findRuneUtxos = async ({
             'Unable to send from UTXO with multiple inscriptions. Split UTXO before sending.'
           )
         }
-        const satoshis = txDetails.vout[txIndex].value
+        const satoshis = txDetails.vout[Number(txIndex)].value
         const holderAddress = rune.wallet_addr
 
         runeUtxos.push({
@@ -878,6 +881,10 @@ export const actualSendFee = async ({
 
   const signedHexPsbt = rawPsbt.extractTransaction().toHex()
 
+  if (!provider.sandshrew.bitcoindRpc.testMemPoolAccept) {
+    throw new Error('bitcoindRpc is undefined');
+  }
+  
   const vsize = (
     await provider.sandshrew.bitcoindRpc.testMemPoolAccept([signedHexPsbt])
   )[0].vsize
@@ -953,6 +960,10 @@ export const actualMintFee = async ({
   })
 
   const signedHexPsbt = rawPsbt.extractTransaction().toHex()
+
+  if (!provider.sandshrew.bitcoindRpc.testMemPoolAccept) {
+    throw new Error('bitcoindRpc is undefined');
+  }
 
   const vsize = (
     await provider.sandshrew.bitcoindRpc.testMemPoolAccept([signedHexPsbt])
@@ -1031,6 +1042,10 @@ export const actualEtchCommitFee = async ({
   })
 
   const signedHexPsbt = rawPsbt.extractTransaction().toHex()
+
+  if (!provider.sandshrew.bitcoindRpc.testMemPoolAccept) {
+    throw new Error('bitcoindRpc is undefined');
+  }
 
   const vsize = (
     await provider.sandshrew.bitcoindRpc.testMemPoolAccept([signedHexPsbt])
@@ -1133,6 +1148,10 @@ export const actualEtchRevealFee = async ({
   })
 
   const signedHexPsbt = rawPsbt.extractTransaction().toHex()
+
+  if (!provider.sandshrew.bitcoindRpc.testMemPoolAccept) {
+    throw new Error('bitcoindRpc is undefined');
+  }
 
   const vsize = (
     await provider.sandshrew.bitcoindRpc.testMemPoolAccept([signedHexPsbt])

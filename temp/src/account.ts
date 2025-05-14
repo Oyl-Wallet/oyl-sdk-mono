@@ -1,11 +1,11 @@
 import { Command } from 'commander'
+import { HDPaths} from '../../core/src/types'
 import {
-  HDPaths,
   generateMnemonic,
   getHDPaths,
   getWalletPrivateKeys,
   mnemonicToAccount,
-} from '@oyl-sdk/core'
+} from '../../core/src/account'
 import * as bitcoin from 'bitcoinjs-lib'
 import { Wallet } from './wallet'
 

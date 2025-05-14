@@ -1,6 +1,6 @@
 import { Command } from 'commander'
 import * as runes from '../rune'
-import * as utxo from '../utxo'
+import * as utxo from '../../core/src/utxo'
 import { Wallet } from './wallet'
 
 export const runeSend = new Command('send')
