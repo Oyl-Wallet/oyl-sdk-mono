@@ -1,22 +1,14 @@
 import fetch from 'node-fetch'
-import asyncPool from 'tiny-async-pool'
-import { EsploraRpc, EsploraUtxo } from '../../../src/rpclient/esplora'
+import { EsploraRpc } from './esplora'
 import * as alkanes_rpc from 'alkanes/lib/rpc'
-import { AlkaneId } from 'shared/interface'
-import {
-  estimateRemoveLiquidityAmounts,
-  RemoveLiquidityPreviewResult,
-  PoolOpcodes,
-} from '../amm/utils'
-import { AlkanesAMMPoolDecoder } from '../amm/pool'
-import { IAlkanesProvider, Outpoint } from '../interfaces'
+import { Outpoint } from '@oyl-sdk/core'
 
 export class MetashrewOverride {
   public override: any
   constructor() {
     this.override = null
   }
-  set(v) {
+  set(v: any) {
     this.override = v
   }
   exists() {
@@ -73,49 +65,6 @@ export function unmapFromPrimitives(v: any): any {
   }
 }
 
-export interface Rune {
-  rune: {
-    id: { block: string; tx: string }
-    name: string
-    spacedName: string
-    divisibility: number
-    spacers: number
-    symbol: string
-  }
-  balance: string
-}
-export interface AlkanesResponse {
-  outpoints: Outpoint[]
-  balanceSheet: []
-}
-
-interface AlkaneSimulateRequest {
-  alkanes: any[]
-  transaction: string
-  block: string
-  height: string
-  txindex: number
-  target: {
-    block: string
-    tx: string
-  }
-  inputs: string[]
-  pointer: number
-  refundPointer: number
-  vout: number
-}
-
-interface AlkaneToken {
-  name: string
-  symbol: string
-  totalSupply: number
-  cap: number
-  minted: number
-  mintActive: boolean
-  percentageMinted: number
-  mintAmount: number
-}
-
 const opcodes: string[] = ['99', '100', '101', '102', '103', '104', '1000']
 const opcodesHRV: string[] = [
   'name',
@@ -127,7 +76,7 @@ const opcodesHRV: string[] = [
   'data',
 ]
 
-export class AlkanesRpc implements IAlkanesProvider {
+export class AlkanesRpc {
   public alkanesUrl: string
   public esplora: EsploraRpc
 
@@ -136,7 +85,7 @@ export class AlkanesRpc implements IAlkanesProvider {
     this.esplora = new EsploraRpc(url)
   }
 
-  async _call(method: string, params = []) {
+  async _call(method: string, params: (string | number | boolean | undefined | any)[] = []) {
     const requestData = {
       jsonrpc: '2.0',
       method: method,
@@ -216,7 +165,7 @@ export class AlkanesRpc implements IAlkanesProvider {
   async _metashrewCall(method: string, params: any[] = []) {
     const rpc = new alkanes_rpc.AlkanesRpc({ baseUrl: metashrew.get() })
     return mapToPrimitives(
-      await rpc[method.split('_')[1]](unmapFromPrimitives(params[0] || {}))
+      await (rpc[method.split('_')[1] as keyof typeof rpc] as Function)(unmapFromPrimitives(params[0] || {}))
     )
   }
 

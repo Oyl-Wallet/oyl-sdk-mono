@@ -1,11 +1,18 @@
-import { DefaultProvider } from './providers/default';
-import { IProvider } from './interfaces';
+import { SandshrewBitcoinClient } from './sandshrew'
+import { EsploraRpc } from './esplora'
+import { OrdRpc } from './ord'
+import { AlkanesRpc } from './alkanes'
 
-export { IProvider, DefaultProvider };
+export class Provider {
+  public sandshrew: SandshrewBitcoinClient
+  public esplora: EsploraRpc
+  public ord: OrdRpc
+  public alkanes: AlkanesRpc
 
-// For backward compatibility
-export class Provider extends DefaultProvider {
   constructor(url: string) {
-    super(url);
+    this.sandshrew = new SandshrewBitcoinClient(url)
+    this.esplora = new EsploraRpc(url)
+    this.ord = new OrdRpc(url)
+    this.alkanes = new AlkanesRpc(url)
   }
 }

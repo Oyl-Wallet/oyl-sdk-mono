@@ -1,14 +1,14 @@
 import fetch from 'node-fetch'
-import { IEsploraProvider, EsploraTx, EsploraUtxo } from '../interfaces'
+import { EsploraTx, EsploraUtxo } from '@oyl-sdk/core'
 
-export class EsploraRpc implements IEsploraProvider {
+export class EsploraRpc {
   public esploraUrl: string
 
   constructor(url: string) {
     this.esploraUrl = url
   }
 
-  async _call(method: string, params = []) {
+  async _call(method: string, params: (string | number | boolean | undefined | any)[] = []) {
     const requestData = {
       jsonrpc: '2.0',
       method: method,

@@ -1,66 +1,53 @@
-import { Provider } from '@oyl-sdk/core'
 import * as bitcoin from 'bitcoinjs-lib'
-import { Account } from '@oyl-sdk/core'
-import { OylTransactionError } from '@oyl-sdk/core'
-import { GatheredUtxos, FormattedUtxo } from '@oyl-sdk/core'
-import { getAddressType } from '@oyl-sdk/core'
-
-export const minimumFee = ({
-  taprootInputCount,
-  nonTaprootInputCount,
-  outputCount,
-}: {
-  taprootInputCount: number
-  nonTaprootInputCount: number
-  outputCount: number
-}) => {
-  const taprootInputSize = 58
-  const nonTaprootInputSize = 148
-  const outputSize = 43
-  const baseSize = 10
-
-  const totalSize =
-    baseSize +
-    taprootInputCount * taprootInputSize +
-    nonTaprootInputCount * nonTaprootInputSize +
-    outputCount * outputSize
-
-  return Math.ceil(totalSize / 4)
-}
+import { 
+  Account,
+  Provider,
+  Signer,
+  FormattedUtxo,
+  getAddressType,
+  findXAmountOfSats,
+  formatInputsToSign,
+  OylTransactionError,
+  minimumFee,
+} from '@oyl-sdk/core'
 
 export const createPsbt = async ({
-  gatheredUtxos,
+  utxos,
+  toAddress,
+  amount,
+  feeRate,
   account,
   provider,
-  feeRate,
-  fee = 0,
+  fee,
 }: {
-  gatheredUtxos: GatheredUtxos
+  utxos: FormattedUtxo[]
+  toAddress: string
+  feeRate: number
+  amount: number
   account: Account
   provider: Provider
-  feeRate?: number
   fee?: number
 }) => {
   try {
-    const originalGatheredUtxos = gatheredUtxos
+    if (!utxos?.length) {
+      throw new Error('No utxos provided')
+    }
+    if (!feeRate) {
+      throw new Error('No feeRate provided')
+    }
 
-    const minFee = minimumFee({
-      taprootInputCount: 2,
+    const minTxSize = minimumFee({
+      taprootInputCount: 1,
       nonTaprootInputCount: 0,
       outputCount: 2,
     })
-    if (!feeRate) {
-      throw new Error('feeRate is required')
-    }
-    const calculatedFee = minFee * feeRate < 250 ? 250 : minFee * feeRate
-    let finalFee = fee ? fee : calculatedFee
 
-    let psbt = new bitcoin.Psbt({ network: provider.network })
+    let calculatedFee = Math.max(minTxSize * feeRate, 250)
+    let finalFee = fee ?? calculatedFee
 
-    const wasmDeploySize = 0 // TODO: Calculate actual size
-    gatheredUtxos = findXAmountOfSats(
-      originalGatheredUtxos.utxos,
-      wasmDeploySize + finalFee * 2
+    let gatheredUtxos = findXAmountOfSats(
+      utxos,
+      Number(finalFee) + Number(amount)
     )
 
     if (!fee && gatheredUtxos.utxos.length > 1) {
@@ -69,18 +56,21 @@ export const createPsbt = async ({
         nonTaprootInputCount: 0,
         outputCount: 2,
       })
-      if (!feeRate) {
-        throw new Error('feeRate is required')
-      }
-      finalFee = txSize * feeRate < 250 ? 250 : txSize * feeRate
 
-      if (gatheredUtxos.totalAmount < finalFee) {
-        gatheredUtxos = findXAmountOfSats(
-          originalGatheredUtxos.utxos,
-          wasmDeploySize + finalFee * 2
-        )
-      }
+      finalFee = Math.max(txSize * feeRate, 250)
+      gatheredUtxos = findXAmountOfSats(
+        utxos,
+        Number(finalFee) + Number(amount)
+      )
     }
+
+    if (gatheredUtxos.totalAmount < Number(finalFee) + Number(amount)) {
+      throw new Error('Insufficient Balance')
+    }
+
+    const psbt: bitcoin.Psbt = new bitcoin.Psbt({
+      network: provider.network,
+    })
 
     for (let i = 0; i < gatheredUtxos.utxos.length; i++) {
       if (getAddressType(gatheredUtxos.utxos[i].address) === 0) {
@@ -130,45 +120,164 @@ export const createPsbt = async ({
       }
     }
 
-    if (gatheredUtxos.totalAmount < finalFee * 2 + wasmDeploySize) {
-      throw new OylTransactionError(Error('Insufficient Balance'))
+    psbt.addOutput({
+      address: toAddress,
+      value: Number(amount),
+    })
+
+    const changeAmount = gatheredUtxos.totalAmount - (finalFee + Number(amount))
+
+    if (changeAmount > 295) {
+      psbt.addOutput({
+        address: account[account.spendStrategy.changeAddress].address,
+        value: changeAmount,
+      })
     }
 
-    psbt.addOutput({
-      value: finalFee + wasmDeploySize + 546,
-      address: account.taproot.address,
+    const updatedPsbt = await formatInputsToSign({
+      _psbt: psbt,
+      senderPublicKey: account.taproot.pubkey,
+      network: provider.network,
     })
 
-    const changeAmount =
-      gatheredUtxos.totalAmount - (finalFee * 2 + wasmDeploySize)
-
-    psbt.addOutput({
-      address: account[account.spendStrategy.changeAddress].address,
-      value: changeAmount,
-    })
-
-    return { psbt: psbt.toBase64() }
+    return { psbt: updatedPsbt.toBase64(), fee: finalFee }
   } catch (error) {
-    throw new OylTransactionError(error)
+    throw new OylTransactionError(error instanceof Error ? error : new Error(String(error)))
   }
 }
 
-export const findXAmountOfSats = (
-  utxos: FormattedUtxo[],
-  targetAmount: number
-): GatheredUtxos => {
-  let totalAmount = 0
-  const gatheredUtxos: FormattedUtxo[] = []
-
-  for (const utxo of utxos) {
-    if (totalAmount >= targetAmount) break
-    gatheredUtxos.push(utxo)
-    totalAmount += utxo.satoshis
+export const send = async ({
+  utxos,
+  toAddress,
+  amount,
+  feeRate,
+  account,
+  provider,
+  signer,
+  fee,
+}: {
+  utxos: FormattedUtxo[]
+  toAddress: string
+  amount: number
+  feeRate: number
+  account: Account
+  provider: Provider
+  signer: Signer
+  fee?: number
+}) => {
+  if (!fee) {
+    fee = (
+      await actualFee({
+        utxos,
+        toAddress,
+        amount,
+        feeRate,
+        account,
+        provider,
+        signer,
+      })
+    ).fee
   }
 
-  if (totalAmount < targetAmount) {
-    throw new OylTransactionError(Error('Insufficient balance'))
+  const { psbt: finalPsbt } = await createPsbt({
+    utxos,
+    toAddress,
+    amount,
+    feeRate,
+    fee,
+    account,
+    provider,
+  })
+
+  const { signedPsbt } = await signer.signAllInputs({
+    rawPsbt: finalPsbt,
+    finalize: true,
+  })
+
+  const result = await provider.pushPsbt({
+    psbtBase64: signedPsbt,
+  })
+
+  return result
+}
+
+export const actualFee = async ({
+  utxos,
+  toAddress,
+  amount,
+  feeRate,
+  account,
+  provider,
+  signer,
+}: {
+  utxos: FormattedUtxo[]
+  toAddress: string
+  feeRate: number
+  amount: number
+  account: Account
+  provider: Provider
+  signer: Signer
+}) => {
+  const { psbt } = await createPsbt({
+    utxos,
+    toAddress: toAddress,
+    amount: amount,
+    feeRate: feeRate,
+    account: account,
+    provider: provider,
+  })
+
+  const { signedPsbt } = await signer.signAllInputs({
+    rawPsbt: psbt,
+    finalize: true,
+  })
+
+  let rawPsbt = bitcoin.Psbt.fromBase64(signedPsbt, {
+    network: account.network,
+  })
+
+  const signedHexPsbt = rawPsbt.extractTransaction().toHex()
+
+  if (!provider.sandshrew.bitcoindRpc.testMemPoolAccept) {
+    throw new Error('testMemPoolAccept method not available')
   }
 
-  return { utxos: gatheredUtxos, totalAmount }
-} 
+  const vsize = (
+    await provider.sandshrew.bitcoindRpc.testMemPoolAccept([signedHexPsbt])
+  )[0].vsize
+
+  const correctFee = vsize * feeRate
+
+  const { psbt: finalPsbt } = await createPsbt({
+    utxos,
+    toAddress: toAddress,
+    amount: amount,
+    feeRate: feeRate,
+    fee: correctFee,
+    account: account,
+    provider: provider,
+  })
+
+  const { signedPsbt: signedAll } = await signer.signAllInputs({
+    rawPsbt: finalPsbt,
+    finalize: true,
+  })
+
+  let finalRawPsbt = bitcoin.Psbt.fromBase64(signedAll, {
+    network: account.network,
+  })
+
+  const finalSignedHexPsbt = finalRawPsbt.extractTransaction().toHex()
+
+  if (!provider.sandshrew.bitcoindRpc.testMemPoolAccept) {
+    throw new Error('testMemPoolAccept method not available')
+  }
+
+  const finalVsize = (
+    await provider.sandshrew.bitcoindRpc.testMemPoolAccept([finalSignedHexPsbt])
+  )[0].vsize
+
+  const finalFee = finalVsize * feeRate
+
+  return { fee: finalFee }
+}

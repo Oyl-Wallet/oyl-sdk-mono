@@ -1,37 +1,31 @@
-import fetch from 'node-fetch'
-import { IOrdProvider, OrdOutput } from '../interfaces'
+import { OrdOutput, OrdCollectibleData } from '@oyl-sdk/core'
+import { decodeCBOR } from '@oyl-sdk/core'
+
+type JsonRpcResponse = {
+  jsonrpc: string
+  result?: any
+  error?: { message: string }
+  id: number
+}
 
 export type OrdOutputRune = {
   amount: number
   divisibility: number
 }
 
-export interface OrdOutput {
-  address: string
-  indexed: boolean
-  inscriptions: string[]
-  runes: Record<string, OrdOutputRune> | OrdOutputRune[][]
-  sat_ranges: number[][]
-  script_pubkey: string
-  spent: boolean
-  transaction: string
-  value: number
-  output?: string
-}
-
-export class OrdRpc implements IOrdProvider {
+export class OrdRpc {
   public ordUrl: string
 
   constructor(url: string) {
     this.ordUrl = url
   }
 
-  async _call(method: string, params = []) {
+  async _call<T>(method: string, params: any[] = []): Promise<T> {
     const requestData = {
       jsonrpc: '2.0',
       method: method,
       params: params,
-      id: 1,
+      id: 2,
     }
 
     const requestOptions = {
@@ -44,14 +38,14 @@ export class OrdRpc implements IOrdProvider {
 
     try {
       const response = await fetch(this.ordUrl, requestOptions)
-      const responseData = await response.json()
+      const responseData = await response.json() as JsonRpcResponse
 
       if (responseData.error) {
         console.error('Ord JSON-RPC Error:', responseData.error)
-        throw new Error(responseData.error)
+        throw new Error(responseData.error.message)
       }
 
-      return responseData.result
+      return responseData.result as T
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
         console.error('Request Timeout:', error)
@@ -62,84 +56,74 @@ export class OrdRpc implements IOrdProvider {
       }
     }
   }
-
-  async getInscriptionById(inscriptionId: string): Promise<any> {
-    return await this._call('ord_inscription::by_id', [inscriptionId])
+  async getInscriptionById(inscriptionId: string): Promise<OrdCollectibleData> {
+    return await this._call<OrdCollectibleData>('ord_inscription', [inscriptionId])
+  }
+  async getInscriptionContent(inscriptionId: string) {
+    return await this._call('ord_content', [inscriptionId])
+  }
+  async getInscriptionByNumber(number: string) {
+    return await this._call('ord_inscription', [number])
   }
 
-  async getInscriptionContent(inscriptionId: string): Promise<any> {
-    return await this._call('ord_inscription::content', [inscriptionId])
+  async getInscriptions(startingNumber?: string) {
+    return await this._call('ord_inscriptions', [
+      startingNumber ? startingNumber : '',
+    ])
   }
 
-  async getInscriptionByNumber(number: string): Promise<any> {
-    return await this._call('ord_inscription::by_number', [number])
+  async getInscriptionsByBlockHash(blockHash: string) {
+    return await this._call('ord_block', [blockHash])
   }
 
-  async getInscriptions(startingNumber?: string): Promise<any> {
-    return await this._call('ord_inscriptions', [startingNumber])
+  async getInscriptionsByBlockHeight(blockHash: string) {
+    return await this._call('ord_block', [blockHash])
   }
-
-  async getInscriptionsByBlockHash(blockHash: string): Promise<any> {
-    return await this._call('ord_inscriptions::by_block_hash', [blockHash])
+  async getInscriptionBySat(satNumber: string) {
+    return await this._call('ord_r:sat', [satNumber])
   }
-
-  async getInscriptionsByBlockHeight(blockHeight: string): Promise<any> {
-    return await this._call('ord_inscriptions::by_block_height', [blockHeight])
+  async getInscriptionBySatWithIndex(satNumber: string, index?: string) {
+    return await this._call('ord_r:sat::at', [satNumber, index])
   }
-
-  async getInscriptionBySat(satNumber: string): Promise<any> {
-    return await this._call('ord_inscription::by_sat', [satNumber])
+  async getInscriptionChildren(inscriptionId: string, page?: string) {
+    return await this._call('ord_r:children', [inscriptionId, page])
   }
+  async getInscriptionMetaData(inscriptionId: string) {
+    const hex: string = await this._call('ord_r:metadata', [inscriptionId])
+    if (hex.includes('not found')) {
+      throw new Error('Inscription metadata not found') // TODO: Move this to the _call method
+    }
 
-  async getInscriptionBySatWithIndex(satNumber: string, index?: string): Promise<any> {
-    return await this._call('ord_inscription::by_sat_with_index', [satNumber, index])
+    return decodeCBOR(hex)
   }
-
-  async getInscriptionChildren(inscriptionId: string, page?: string): Promise<any> {
-    return await this._call('ord_inscription::children', [inscriptionId, page])
+  async getTxOutput(txIdVout: string): Promise<OrdOutput> {
+    return await this._call('ord_output', [txIdVout])
   }
-
-  async getInscriptionMetaData(inscriptionId: string): Promise<any> {
-    return await this._call('ord_inscription::metadata', [inscriptionId])
+  async getSatByNumber(number: string) {
+    return await this._call('ord_sat', [number])
   }
-
-  async getOutput(txid: string, vout: number): Promise<OrdOutput> {
-    return (await this._call('ord_output', [txid, vout])) as OrdOutput
+  async getSatByDecimal(decimal: string) {
+    return await this._call('ord_sat', [decimal])
   }
-
-  async getSatByNumber(number: string): Promise<any> {
-    return await this._call('ord_sat::by_number', [number])
+  async getSatByDegree(degree: string) {
+    return await this._call('ord_sat', [degree])
   }
-
-  async getSatByDecimal(decimal: string): Promise<any> {
-    return await this._call('ord_sat::by_decimal', [decimal])
+  async getSatByBase26(base26: string) {
+    return await this._call('ord_sat', [base26])
   }
-
-  async getSatByDegree(degree: string): Promise<any> {
-    return await this._call('ord_sat::by_degree', [degree])
+  async getSatByPercentage(percentage: string) {
+    return await this._call('ord_sat', [percentage])
   }
-
-  async getSatByBase26(base26: string): Promise<any> {
-    return await this._call('ord_sat::by_base26', [base26])
+  async getRuneByName(runeName: string) {
+    return await this._call('ord_rune', [runeName])
   }
-
-  async getSatByPercentage(percentage: string): Promise<any> {
-    return await this._call('ord_sat::by_percentage', [percentage])
+  async getRuneById(runeId: string) {
+    return await this._call('ord_rune', [runeId])
   }
-
-  async getRuneByName(runeName: string): Promise<any> {
-    return await this._call('ord_rune::by_name', [runeName])
+  async getRunes() {
+    return await this._call('ord_runes', [])
   }
-
-  async getRuneById(runeId: string): Promise<any> {
-    return await this._call('ord_rune::by_id', [runeId])
-  }
-
-  async getRunes(): Promise<any> {
-    return await this._call('ord_runes')
-  }
-
-  async getOrdData(address: string): Promise<any> {
-    return await this._call('ord_data', [address])
+  async getOrdData(address: string) {
+    return await this._call('ord_address', [address])
   }
 }

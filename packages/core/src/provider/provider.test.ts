@@ -1,3 +1,4 @@
+import '@types/jest'
 import { networks } from 'bitcoinjs-lib'
 import { Provider } from './index'
 import * as dotenv from 'dotenv'

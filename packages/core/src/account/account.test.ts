@@ -1,12 +1,11 @@
+import '@types/jest'
 import {
   mnemonicToAccount,
   generateMnemonic,
   getWalletPrivateKeys,
-  validateMnemonic,
   getHDPaths,
-  HDPaths,
-  WalletStandard,
-} from './index'
+} from './account'
+import { WalletStandard } from '../types'
 import * as bitcoin from 'bitcoinjs-lib'
 
 const TEST_MNEMONIC =

@@ -1,3 +1,4 @@
+import '@types/jest'
 import * as bitcoin from 'bitcoinjs-lib'
 import { Signer, walletInit } from './signer'
 import { BIP322, Verifier, Signer as bipSigner } from 'bip322-js'

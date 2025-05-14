@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "pnpm -r run build",
+    "build": "pnpm --filter @oyl-sdk/core build && pnpm --filter \"@oyl-sdk/rpc-client\" build && pnpm --filter \"@oyl-sdk/btc\" build && pnpm --filter \"@oyl-sdk/brc20\" build && pnpm --filter \"@oyl-sdk/runes\" build && pnpm --filter \"@oyl-sdk/collectible\" build && pnpm --filter \"@oyl-sdk/amm\" build && pnpm --filter \"@oyl-sdk/alkanes\" build && pnpm --filter \"@oyl-sdk/cli\" build && pnpm --filter \"@oyl-sdk\" build",
     "test": "pnpm -r run test",
     "lint": "pnpm -r run lint",
     "clean": "pnpm -r run clean"

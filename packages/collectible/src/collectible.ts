@@ -1,11 +1,16 @@
-import { minimumFee } from '@oyl-sdk/btc'
-import { Provider } from '@oyl-sdk/core'
 import * as bitcoin from 'bitcoinjs-lib'
-import { Account } from '@oyl-sdk/core'
-import { findXAmountOfSats, formatInputsToSign, getAddressType } from '@oyl-sdk/core'
-import { OylTransactionError } from '@oyl-sdk/core'
-import { Signer } from '@oyl-sdk/core'
-import { GatheredUtxos, OrdCollectibleData } from '@oyl-sdk/core'
+import { 
+  Account,
+  Provider,
+  Signer,
+  GatheredUtxos,
+  OrdCollectibleData,
+  minimumFee,
+  findXAmountOfSats,
+  formatInputsToSign,
+  getAddressType,
+  OylTransactionError,
+} from '@oyl-sdk/core'
 
 export const createPsbt = async ({
   gatheredUtxos,
@@ -34,7 +39,7 @@ export const createPsbt = async ({
       nonTaprootInputCount: 0,
       outputCount: 2,
     })
-    const calculatedFee = minFee * feeRate < 250 ? 250 : minFee * feeRate
+    const calculatedFee = minFee * feeRate! < 250 ? 250 : minFee * feeRate!
     let finalFee = fee ? fee : calculatedFee
 
     let psbt = new bitcoin.Psbt({ network: provider.network })
@@ -48,7 +53,7 @@ export const createPsbt = async ({
       const previousTxHex: string = await provider.esplora.getTxHex(txId)
       psbt.addInput({
         hash: txId,
-        index: parseInt(voutIndex),
+        index: voutIndex,
         nonWitnessUtxo: Buffer.from(previousTxHex, 'hex'),
       })
     }
@@ -60,7 +65,7 @@ export const createPsbt = async ({
 
       psbt.addInput({
         hash: txId,
-        index: parseInt(voutIndex),
+        index: voutIndex,
         redeemScript: redeemScript,
         witnessUtxo: {
           value: data.value,
@@ -78,7 +83,7 @@ export const createPsbt = async ({
     ) {
       psbt.addInput({
         hash: txId,
-        index: parseInt(voutIndex),
+        index: voutIndex,
         witnessUtxo: {
           script: Buffer.from(data.scriptpubkey, 'hex'),
           value: data.value,
@@ -102,7 +107,7 @@ export const createPsbt = async ({
         nonTaprootInputCount: 0,
         outputCount: 2,
       })
-      finalFee = txSize * feeRate < 250 ? 250 : txSize * feeRate
+      finalFee = txSize * feeRate! < 250 ? 250 : txSize * feeRate!
       gatheredUtxos = findXAmountOfSats(
         originalGatheredUtxos.utxos,
         Number(finalFee)
@@ -176,7 +181,7 @@ export const createPsbt = async ({
 
     return { psbt: formattedPsbtTx.toBase64() }
   } catch (error) {
-    throw new OylTransactionError(error)
+    throw new OylTransactionError(Error(String(error)))
   }
 }
 
@@ -189,15 +194,14 @@ export const findCollectible = async ({
   provider: Provider
   inscriptionId: string
 }) => {
-  const collectibleData: OrdCollectibleData =
-    await provider.ord.getInscriptionById(inscriptionId)
+  const collectibleData = await provider.ord.getInscriptionById(inscriptionId) as OrdCollectibleData
 
   if (collectibleData.address !== address) {
     throw new Error('Inscription does not belong to the address given')
   }
 
   const inscriptionTxId = collectibleData.satpoint.split(':')[0]
-  const inscriptionTxVOutIndex = collectibleData.satpoint.split(':')[1]
+  const inscriptionTxVOutIndex = parseInt(collectibleData.satpoint.split(':')[1])
   const inscriptionUtxoDetails = await provider.esplora.getTxInfo(
     inscriptionTxId
   )
@@ -309,9 +313,49 @@ export const actualFee = async ({
     finalize: true,
   })
 
-  const { fee } = await provider.estimateFee({
-    psbtBase64: signedPsbt,
+  let rawPsbt = bitcoin.Psbt.fromBase64(signedPsbt, {
+    network: account.network,
   })
 
-  return { fee }
-} 
+  const signedHexPsbt = rawPsbt.extractTransaction().toHex()
+
+  if (!provider.sandshrew.bitcoindRpc.testMemPoolAccept) {
+    throw new Error('testMemPoolAccept method not available')
+  }
+
+  const vsize = (
+    await provider.sandshrew.bitcoindRpc.testMemPoolAccept([signedHexPsbt])
+  )[0].vsize
+
+  const correctFee = vsize * feeRate!
+
+  const { psbt: finalPsbt } = await createPsbt({
+    gatheredUtxos,
+    account,
+    inscriptionId,
+    provider,
+    inscriptionAddress,
+    toAddress,
+    feeRate,
+    fee: correctFee,
+  })
+
+  const { signedPsbt: signedAll } = await signer.signAllInputs({
+    rawPsbt: finalPsbt,
+    finalize: true,
+  })
+
+  let finalRawPsbt = bitcoin.Psbt.fromBase64(signedAll, {
+    network: account.network,
+  })
+
+  const finalSignedHexPsbt = finalRawPsbt.extractTransaction().toHex()
+
+  const finalVsize = (
+    await provider.sandshrew.bitcoindRpc.testMemPoolAccept([finalSignedHexPsbt])
+  )[0].vsize
+
+  const finalFee = finalVsize * feeRate!
+
+  return { fee: finalFee }
+}

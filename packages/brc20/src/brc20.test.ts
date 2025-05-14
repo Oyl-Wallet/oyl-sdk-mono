@@ -73,6 +73,9 @@ const testFormattedUtxos: GatheredUtxos = {
       scriptPk: outputScript.toString('hex'),
       address: account.taproot.address,
       inscriptions: [],
+      runes: {},
+      alkanes: {},
+      indexed: false,
     },
     {
       txId: '72e22e25fa587c01cbd0a86a5727090c9cdf12e47126c99e35b24185c395b275',
@@ -82,6 +85,9 @@ const testFormattedUtxos: GatheredUtxos = {
       scriptPk: output!.toString('hex'),
       address: account.taproot.address,
       inscriptions: [],
+      runes: {},
+      alkanes: {},
+      indexed: false,
     },
   ],
   totalAmount: 200000,
@@ -198,6 +204,6 @@ describe('brc20', () => {
       provider,
       signer,
     })
-    expect(result.txid).toBeDefined()
+    expect(result.txId).toBeDefined()
   })
 }) 

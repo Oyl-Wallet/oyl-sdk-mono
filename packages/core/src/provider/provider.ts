@@ -1,9 +1,10 @@
 import * as bitcoin from 'bitcoinjs-lib'
-import { SandshrewBitcoinClient } from '../rpclient/sandshrew'
-import { EsploraRpc } from '../rpclient/esplora'
-import { OrdRpc } from '../rpclient/ord'
-import { AlkanesRpc } from '../rpclient/alkanes'
-import { waitForTransaction } from '../utils'
+import { SandshrewBitcoinClient } from '@oyl-sdk/rpc-client'
+import { EsploraRpc } from '@oyl-sdk/rpc-client'
+import { OrdRpc } from '@oyl-sdk/rpc-client'
+import { AlkanesRpc } from '@oyl-sdk/rpc-client'
+import { waitForTransaction } from '../shared/utils'
+
 
 
 export type ProviderConstructorArgs = {
@@ -75,7 +76,9 @@ export class Provider {
     if (psbtHex && psbtBase64) {
       throw new Error('Please select one format of psbt to broadcast')
     }
-    let psbt: bitcoin.Psbt
+
+    let psbt: bitcoin.Psbt = new bitcoin.Psbt({ network: this.network })
+
     if (psbtHex) {
       psbt = bitcoin.Psbt.fromHex(psbtHex, {
         network: this.network,
@@ -89,27 +92,28 @@ export class Provider {
     }
 
     let extractedTx: bitcoin.Transaction
+
     try {
       extractedTx = psbt.extractTransaction()
     } catch (error) {
       throw new Error('Transaction could not be extracted do to invalid Psbt.')
     }
+
     const txId = extractedTx.getId()
     const rawTx = extractedTx.toHex()
-
-    const [result] = await this.sandshrew.bitcoindRpc.testMemPoolAccept([rawTx])
+    const [result] = await this.sandshrew.bitcoindRpc.testMemPoolAccept!([rawTx])
 
     if (!result.allowed) {
       throw new Error(result['reject-reason'])
     }
-    await this.sandshrew.bitcoindRpc.sendRawTransaction(rawTx)
+    await this.sandshrew.bitcoindRpc.sendRawTransaction!(rawTx)
 
     await waitForTransaction({
       txId,
       sandshrewBtcClient: this.sandshrew,
     })
 
-    const txInMemPool = await this.sandshrew.bitcoindRpc.getMemPoolEntry(txId)
+    const txInMemPool = await this.sandshrew.bitcoindRpc.getMemPoolEntry!(txId)
     const fee = txInMemPool.fees['base'] * 10 ** 8
 
     return {

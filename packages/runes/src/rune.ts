@@ -1,25 +1,27 @@
-import { minimumFee } from '../../../src/btc/btc'
-import { Provider } from '../../../src/provider/provider'
+import { encodeVarint, minimumFee } from '@oyl-sdk/core'
 import * as bitcoin from 'bitcoinjs-lib'
-import { Account } from '../../../src/account/account'
 import {
   findXAmountOfSats,
   formatInputsToSign,
   getOutputValueByVOutIndex,
   hexToLittleEndian,
   inscriptionSats,
-  runeFromStr,
   tweakSigner,
-} from '../shared/utils'
-import { OylTransactionError } from '../errors'
-import { GatheredUtxos, RuneUTXO } from '../shared/interface'
-import { getAddressType } from '../shared/utils'
-import { Signer } from '../signer'
+} from '@oyl-sdk/core'
+import {
+  Account,
+  Provider,
+  OylTransactionError,
+  GatheredUtxos,
+  RuneUTXO,
+  getAddressType,
+  Signer,
+} from '@oyl-sdk/core'
 import { toXOnly } from 'bitcoinjs-lib/src/psbt/bip371'
 import { LEAF_VERSION_TAPSCRIPT } from 'bitcoinjs-lib/src/payments/bip341'
-import { encodeRunestone } from '@magiceden-oss/runestone-lib'
-import { OrdOutput } from 'rpclient/ord'
-import { rune } from 'index'
+import { encodeRunestone, RunestoneSpec } from '@magiceden-oss/runestone-lib'
+import { OrdOutput } from '@oyl-sdk/core'
+//import { rune } from 'index'
 
 interface OrdOutputs {
   result: OrdOutput
@@ -32,6 +34,13 @@ interface SingleRuneOutpoint {
   decimals: number[]
   rune_ids: string[]
   satoshis?: number
+}
+
+export type RuneUtxo = {
+  outpointId: string
+  amount: number
+  scriptPk: string
+  satoshis: number
 }
 
 export const createSendPsbt = async ({
@@ -63,7 +72,7 @@ export const createSendPsbt = async ({
       nonTaprootInputCount: 0,
       outputCount: 3,
     })
-    const calculatedFee = minFee * feeRate < 250 ? 250 : minFee * feeRate
+    const calculatedFee = minFee * feeRate! < 250 ? 250 : minFee * feeRate!
     let finalFee = fee ? fee : calculatedFee
 
     gatheredUtxos = findXAmountOfSats(
@@ -78,7 +87,7 @@ export const createSendPsbt = async ({
         outputCount: 3,
       })
 
-      finalFee = Math.max(txSize * feeRate, 250)
+      finalFee = Math.max(txSize * feeRate!, 250)
       gatheredUtxos = findXAmountOfSats(
         originalGatheredUtxos.utxos,
         Number(finalFee) + Number(amount)
@@ -256,7 +265,7 @@ export const createMintPsbt = async ({
       outputCount: 2,
     })
 
-    let calculatedFee = Math.max(minTxSize * feeRate, 250)
+    let calculatedFee = Math.max(minTxSize * feeRate!, 250)
     let finalFee = fee ?? calculatedFee
 
     gatheredUtxos = findXAmountOfSats(
@@ -272,7 +281,7 @@ export const createMintPsbt = async ({
         nonTaprootInputCount: 0,
         outputCount: 2,
       })
-      finalFee = txSize * feeRate < 250 ? 250 : txSize * feeRate
+      finalFee = txSize * feeRate! < 250 ? 250 : txSize * feeRate!
 
       if (gatheredUtxos.totalAmount < finalFee + inscriptionSats) {
         throw new OylTransactionError(Error('Insufficient Balance'))
@@ -390,7 +399,7 @@ export const createEtchCommit = async ({
       nonTaprootInputCount: 0,
       outputCount: 2,
     })
-    const calculatedFee = minFee * feeRate < 250 ? 250 : minFee * feeRate
+    const calculatedFee = minFee * feeRate! < 250 ? 250 : minFee * feeRate!
     let finalFee = fee ? fee : calculatedFee
 
     let psbt = new bitcoin.Psbt({ network: provider.network })
@@ -422,6 +431,9 @@ export const createEtchCommit = async ({
       network: provider.network,
     })
 
+    if (!inscriberInfo.address) {
+      throw new OylTransactionError(Error('Failed to generate inscriber address'))
+    }
     psbt.addOutput({
       value: Number(finalFee) + 546,
       address: inscriberInfo.address,
@@ -438,7 +450,7 @@ export const createEtchCommit = async ({
         nonTaprootInputCount: 0,
         outputCount: 2,
       })
-      finalFee = txSize * feeRate < 250 ? 250 : txSize * feeRate
+      finalFee = txSize * feeRate! < 250 ? 250 : txSize * feeRate!
 
       if (gatheredUtxos.totalAmount < finalFee) {
         gatheredUtxos = findXAmountOfSats(
@@ -585,6 +597,10 @@ export const createEtchReveal = async ({
       network: provider.network,
     })
 
+    if (!output) {
+      throw new OylTransactionError(Error('Failed to generate p2tr output'))
+    }
+
     psbt.addInput({
       hash: commitTxId,
       index: 0,
@@ -608,8 +624,8 @@ export const createEtchReveal = async ({
         symbol,
         premine,
         terms: {
-          cap,
-          amount: perMintAmount,
+          cap: cap ? BigInt(cap) : undefined,
+          amount: perMintAmount ? BigInt(perMintAmount) : undefined,
         },
         turbo,
       },
@@ -684,7 +700,7 @@ const mapRuneBalances = async ({
     const singleRuneOutpoint: any = {}
     singleRuneOutpoint['output'] = ordOutputs[i].result.output
     singleRuneOutpoint['wallet_addr'] = ordOutputs[i].result.address
-    const [txId, txIndex] = ordOutputs[i].result.output.split(':')
+    const [txId, txIndex] = ordOutputs[i].result.output!.split(':')
     singleRuneOutpoint['pkscript'] = (
       await provider.esplora.getTxInfo(txId)
     ).vout[txIndex].scriptpubkey
@@ -758,13 +774,13 @@ export const findRuneUtxos = async ({
   })
 
   if (greatestToLeast) {
-    runeUtxoOutpoints?.sort((a, b) => b.satoshis - a.satoshis)
+    runeUtxoOutpoints?.sort((a, b) => (b.satoshis ?? 0) - (a.satoshis ?? 0))
   } else {
-    runeUtxoOutpoints?.sort((a, b) => a.satoshis - b.satoshis)
+    runeUtxoOutpoints?.sort((a, b) => (a.satoshis ?? 0) - (b.satoshis ?? 0))
   }
   let runeTotalSatoshis: number = 0
   let runeTotalAmount: number = 0
-  let divisibility: number
+  let divisibility: number = 0
 
   for (const rune of runeUtxoOutpoints) {
     if (runeTotalAmount < targetNumberOfRunes) {
@@ -866,7 +882,7 @@ export const actualSendFee = async ({
     await provider.sandshrew.bitcoindRpc.testMemPoolAccept([signedHexPsbt])
   )[0].vsize
 
-  const correctFee = vsize * feeRate
+  const correctFee = vsize * feeRate!
 
   const { psbt: finalPsbt } = await createSendPsbt({
     gatheredUtxos,
@@ -895,7 +911,7 @@ export const actualSendFee = async ({
     await provider.sandshrew.bitcoindRpc.testMemPoolAccept([finalSignedHexPsbt])
   )[0].vsize
 
-  const finalFee = finalVsize * feeRate
+  const finalFee = finalVsize * feeRate!
 
   return { fee: finalFee }
 }
@@ -942,7 +958,7 @@ export const actualMintFee = async ({
     await provider.sandshrew.bitcoindRpc.testMemPoolAccept([signedHexPsbt])
   )[0].vsize
 
-  const correctFee = vsize * feeRate
+  const correctFee = vsize * feeRate!
 
   const { psbt: finalPsbt } = await createMintPsbt({
     gatheredUtxos,
@@ -968,7 +984,7 @@ export const actualMintFee = async ({
     await provider.sandshrew.bitcoindRpc.testMemPoolAccept([finalSignedHexPsbt])
   )[0].vsize
 
-  const finalFee = finalVsize * feeRate
+  const finalFee = finalVsize * feeRate!
 
   return { fee: finalFee }
 }
@@ -1020,7 +1036,7 @@ export const actualEtchCommitFee = async ({
     await provider.sandshrew.bitcoindRpc.testMemPoolAccept([signedHexPsbt])
   )[0].vsize
 
-  const correctFee = vsize * feeRate
+  const correctFee = vsize * feeRate!
 
   const { psbt: finalPsbt } = await createEtchCommit({
     gatheredUtxos,
@@ -1029,7 +1045,7 @@ export const actualEtchCommitFee = async ({
     runeName,
     account,
     provider,
-    feeRate,
+    feeRate: feeRate!,
     fee: correctFee,
   })
 
@@ -1048,7 +1064,7 @@ export const actualEtchCommitFee = async ({
     await provider.sandshrew.bitcoindRpc.testMemPoolAccept([finalSignedHexPsbt])
   )[0].vsize
 
-  const finalFee = finalVsize * feeRate
+  const finalFee = finalVsize * feeRate!
 
   return { fee: finalFee }
 }
@@ -1105,7 +1121,7 @@ export const actualEtchRevealFee = async ({
     divisibility,
     runeName,
     provider,
-    feeRate,
+    feeRate: feeRate!,
   })
   const { signedPsbt } = await signer.signAllInputs({
     rawPsbt: psbt,
@@ -1122,7 +1138,7 @@ export const actualEtchRevealFee = async ({
     await provider.sandshrew.bitcoindRpc.testMemPoolAccept([signedHexPsbt])
   )[0].vsize
 
-  const correctFee = vsize * feeRate
+  const correctFee = vsize * feeRate!
 
   const { psbt: finalPsbt } = await createEtchReveal({
     commitTxId,
@@ -1137,7 +1153,7 @@ export const actualEtchRevealFee = async ({
     divisibility,
     runeName,
     provider,
-    feeRate,
+    feeRate: feeRate!,
     fee: correctFee,
   })
 
@@ -1156,7 +1172,7 @@ export const actualEtchRevealFee = async ({
     await provider.sandshrew.bitcoindRpc.testMemPoolAccept([finalSignedHexPsbt])
   )[0].vsize
 
-  const finalFee = finalVsize * feeRate
+  const finalFee = finalVsize * feeRate!
 
   return { fee: finalFee }
 }
@@ -1294,7 +1310,7 @@ export const etchCommit = async ({
     runeName,
     account,
     provider,
-    feeRate,
+    feeRate: feeRate!,
     signer,
   })
 
@@ -1305,7 +1321,7 @@ export const etchCommit = async ({
     runeName,
     account,
     provider,
-    feeRate,
+    feeRate: feeRate!,
     fee: commitFee,
   })
 
@@ -1364,15 +1380,15 @@ export const etchReveal = async ({
     commitTxId,
     script: Buffer.from(script, 'hex'),
     symbol,
-    cap,
-    premine,
+    cap: cap!,
+    premine: premine!,
     perMintAmount,
-    turbo,
-    divisibility,
+    turbo: turbo!,
+    divisibility: divisibility!,
     runeName,
     account,
     provider,
-    feeRate,
+    feeRate: feeRate!,
     signer,
   })
 
@@ -1382,14 +1398,14 @@ export const etchReveal = async ({
     commitTxId,
     script: Buffer.from(script, 'hex'),
     symbol,
-    cap,
-    premine,
+    cap: cap!,
+    premine: premine!,
     perMintAmount,
-    turbo,
-    divisibility,
+    turbo: turbo!,
+    divisibility: divisibility!,
     runeName,
     provider,
-    feeRate,
+    feeRate: feeRate!,
     fee,
   })
 
@@ -1550,8 +1566,8 @@ export const createRuneEtchScript = ({
       runeName,
       symbol,
       terms: {
-        cap: cap && BigInt(cap),
-        amount: perMintAmount && BigInt(perMintAmount),
+        cap: cap ? BigInt(cap) : undefined,
+        amount: perMintAmount ? BigInt(perMintAmount) : undefined,
       },
       turbo,
     },

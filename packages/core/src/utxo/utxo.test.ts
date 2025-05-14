@@ -1,10 +1,16 @@
-import { Provider } from '../provider/provider'
+import '@types/jest'
+import { 
+  addressUtxos,
+  selectUtxos,
+  accountUtxos
+} from './utxo'
 import * as dotenv from 'dotenv'
 import * as bitcoin from 'bitcoinjs-lib'
-import { EsploraUtxo, addressUtxos, selectUtxos, accountUtxos } from './utxo'
-import { FormattedUtxo } from '../shared/interface'
-import { accountUtxos as accountUtxosFixture } from '../__fixtures__/utxos'
-import { Account } from '../account/account'
+import { accountUtxos as accountUtxosFixture } from './__fixtures__/utxos'
+import { Provider } from '../provider'
+import { Account } from '../types'
+import { toTxId } from '../shared/utils'
+import { EsploraUtxo, FormattedUtxo } from '../types'
 
 dotenv.config()
 
@@ -25,6 +31,9 @@ const testFormattedUtxos: FormattedUtxo[] = [
       'b7fbbedbe61b51bf4e41e3517b8232f31c64f3b67ffd2d8eecff12fc7db4cae5',
     address: 'bc1pklamaklxrdgm7njpudghhq3j7vwxfuak0l7jmrhvluf0cld5etjsga00nj',
     inscriptions: [],
+    runes: {},
+    alkanes: {},
+    indexed: true,
   },
   {
     txId: '72e22e25fa587c01cbd0a86a5727090c9cdf12e47126c99e35b24185c395b275',
@@ -35,6 +44,9 @@ const testFormattedUtxos: FormattedUtxo[] = [
       'b7fbbedbe61b51bf4e41e3517b8232f31c64f3b67ffd2d8eecff12fc7db4cae5',
     address: 'bc1pklamaklxrdgm7njpudghhq3j7vwxfuak0l7jmrhvluf0cld5etjsga00nj',
     inscriptions: [],
+    runes: {},
+    alkanes: {},
+    indexed: true,
   },
 ]
 
@@ -417,14 +429,9 @@ const mockMultiCallResponses = [
   [
     { result: testOrdTxOutputs[0] }, // ord_output
     { result: testEsploraTxInfo[0] }, // esplora_tx
-    { result: [] }, // alkanes_protorunesbyoutpoint
   ],
   // Second UTXO
-  [
-    { result: testOrdTxOutputs[1] },
-    { result: testEsploraTxInfo[1] },
-    { result: [] },
-  ],
+  [{ result: testOrdTxOutputs[1] }, { result: testEsploraTxInfo[1] }],
   // Third UTXO (with alkane)
   [
     { result: testOrdTxOutputs[2] },
@@ -432,29 +439,25 @@ const mockMultiCallResponses = [
     { result: [testAlkanes[2]] },
   ],
   // Fourth UTXO (unconfirmed)
-  [
-    { result: testOrdTxOutputs[3] },
-    { result: testEsploraTxInfo[3] },
-    { result: [] },
-  ],
+  [{ result: testOrdTxOutputs[3] }, { result: testEsploraTxInfo[3] }],
   // Fifth UTXO (with inscription)
-  [
-    { result: testOrdTxOutputs[4] },
-    { result: testEsploraTxInfo[4] },
-    { result: [] },
-  ],
+  [{ result: testOrdTxOutputs[4] }, { result: testEsploraTxInfo[4] }],
   // Sixth UTXO (with rune)
-  [
-    { result: testOrdTxOutputs[5] },
-    { result: testEsploraTxInfo[5] },
-    { result: [] },
-  ],
+  [{ result: testOrdTxOutputs[5] }, { result: testEsploraTxInfo[5] }],
 ]
 
-const mockSandshrewMultiCall = jest.fn().mockImplementation((calls) => {
+const mockSandshrewMultiCall = jest.fn().mockImplementation((calls: [string, (string | object)[]][]) => {
   // First call is for retrieving UTXOs and block count
   if (calls[0][0] === 'esplora_address::utxo') {
-    return Promise.resolve([{ result: testEsploraUtxos }, { result: 283 }])
+    return Promise.resolve([
+      { result: testEsploraUtxos },
+      { result: 283 },
+      {
+        result: {
+          outpoints: [],
+        },
+      },
+    ])
   }
   // For UTXO processing, return mocked responses based on the txid:vout
   const txIdVout = calls[0][1][0]
@@ -476,7 +479,7 @@ jest.mock('../provider/provider', () => {
     Provider: jest.fn().mockImplementation(() => ({
       network: bitcoin.networks.bitcoin,
       sandshrew: {
-        multiCall: (calls) => mockSandshrewMultiCall(calls),
+        multiCall: (calls: [string, (string | object)[]][]) => mockSandshrewMultiCall(calls),
       },
       esplora: {
         getTxInfo: () => Promise.resolve({}),
@@ -613,8 +616,11 @@ describe('utxo', () => {
           satoshis: 50000,
           address: testAccount.nativeSegwit.address,
           inscriptions: [],
+          runes: {},
+          alkanes: {},
           confirmations: 1,
           scriptPk: 'mock_script1',
+          indexed: true,
         },
         {
           txId: 'tx2',
@@ -622,8 +628,11 @@ describe('utxo', () => {
           satoshis: 100000,
           address: testAccount.taproot.address,
           inscriptions: [],
+          runes: {},
+          alkanes: {},
           confirmations: 1,
           scriptPk: 'mock_script2',
+          indexed: true,
         },
         {
           txId: 'tx3',
@@ -631,8 +640,11 @@ describe('utxo', () => {
           satoshis: 75000,
           address: testAccount.nativeSegwit.address,
           inscriptions: [],
+          runes: {},
+          alkanes: {},
           confirmations: 1,
           scriptPk: 'mock_script3',
+          indexed: true,
         },
         {
           txId: 'tx4',
@@ -640,8 +652,11 @@ describe('utxo', () => {
           satoshis: 25000,
           address: testAccount.taproot.address,
           inscriptions: [],
+          runes: {},
+          alkanes: {},
           confirmations: 1,
           scriptPk: 'mock_script4',
+          indexed: true,
         },
       ]
 
@@ -686,8 +701,11 @@ describe('utxo', () => {
           satoshis: 50000,
           address: testAccount.nativeSegwit.address,
           inscriptions: [],
+          runes: {},
+          alkanes: {},
           confirmations: 1,
           scriptPk: 'mock_script1',
+          indexed: true,
         },
         {
           txId: 'native_tx2',
@@ -695,8 +713,11 @@ describe('utxo', () => {
           satoshis: 75000,
           address: testAccount.nativeSegwit.address,
           inscriptions: [],
+          runes: {},
+          alkanes: {},
           confirmations: 1,
           scriptPk: 'mock_script2',
+          indexed: true,
         },
         // Nested SegWit UTXOs (should be spent second)
         {
@@ -705,8 +726,11 @@ describe('utxo', () => {
           satoshis: 100000,
           address: testAccount.nestedSegwit.address,
           inscriptions: [],
+          runes: {},
+          alkanes: {},
           confirmations: 1,
           scriptPk: 'mock_script3',
+          indexed: true,
         },
         {
           txId: 'nested_tx2',
@@ -714,8 +738,11 @@ describe('utxo', () => {
           satoshis: 25000,
           address: testAccount.nestedSegwit.address,
           inscriptions: [],
+          runes: {},
+          alkanes: {},
           confirmations: 1,
           scriptPk: 'mock_script4',
+          indexed: true,
         },
         // Taproot UTXOs (should be spent third)
         {
@@ -724,8 +751,11 @@ describe('utxo', () => {
           satoshis: 150000,
           address: testAccount.taproot.address,
           inscriptions: [],
+          runes: {},
+          alkanes: {},
           confirmations: 1,
           scriptPk: 'mock_script5',
+          indexed: true,
         },
         {
           txId: 'taproot_tx2',
@@ -733,8 +763,11 @@ describe('utxo', () => {
           satoshis: 50000,
           address: testAccount.taproot.address,
           inscriptions: [],
+          runes: {},
+          alkanes: {},
           confirmations: 1,
           scriptPk: 'mock_script6',
+          indexed: true,
         },
         // Legacy UTXOs (should be spent last)
         {
@@ -743,8 +776,11 @@ describe('utxo', () => {
           satoshis: 200000,
           address: testAccount.legacy.address,
           inscriptions: [],
+          runes: {},
+          alkanes: {},
           confirmations: 1,
           scriptPk: 'mock_script7',
+          indexed: true,
         },
         {
           txId: 'legacy_tx2',
@@ -752,8 +788,11 @@ describe('utxo', () => {
           satoshis: 100000,
           address: testAccount.legacy.address,
           inscriptions: [],
+          runes: {},
+          alkanes: {},
           confirmations: 1,
           scriptPk: 'mock_script8',
+          indexed: true,
         },
       ]
 
@@ -874,7 +913,15 @@ describe('utxo', () => {
 
       // Mock the multiCall to return our special value UTXOs
       mockSandshrewMultiCall.mockImplementationOnce(() =>
-        Promise.resolve([{ result: specialValueUtxos }, { result: 283 }])
+        Promise.resolve([
+          { result: specialValueUtxos },
+          { result: 283 },
+          {
+            result: {
+              outpoints: [],
+            },
+          },
+        ])
       )
 
       // Mock the subsequent multiCalls for each UTXO
@@ -888,7 +935,6 @@ describe('utxo', () => {
           return Promise.resolve([
             { result: { indexed: true, inscriptions: [], runes: {} } }, // ord_output
             { result: { vout: [{ scriptpubkey: 'mock_script' }] } }, // esplora_tx
-            { result: [] }, // alkanes_protorunesbyoutpoint
           ])
         }
 
@@ -904,15 +950,154 @@ describe('utxo', () => {
       // Verify that 546 and 330 satoshi UTXOs are in otherUtxos, not spendableUtxos
       expect(result.spendableUtxos).toHaveLength(1)
       expect(result.spendableUtxos[0].satoshis).toBe(1000)
-
-      expect(result.otherUtxos).toHaveLength(2)
-      expect(result.otherUtxos.map((utxo) => utxo.satoshis)).toEqual(
-        expect.arrayContaining([546, 330])
+      expect(result.spendableUtxos.map((utxo) => utxo.satoshis)).toEqual(
+        expect.not.arrayContaining([546, 330])
       )
 
       // Verify total balances
       expect(result.spendableTotalBalance).toBe(1000)
       expect(result.totalBalance).toBe(1876) // 546 + 330 + 1000
+    })
+
+    it('should filter out alkanes and runes from spendable utxos', async () => {
+      const specialValueUtxos: EsploraUtxo[] = [
+        {
+          txid: '72e22e25fa587c01cbd0a86a5727090c9cdf12e47126c99e35b24185c395b277',
+          vout: 0,
+          status: {
+            confirmed: true,
+            block_height: 280,
+            block_hash:
+              '519a8fa6b439da658a83b231486958a26c76ca92811d1e5cc7bcb94bd574c20f',
+            block_time: 1719240702,
+          },
+          value: 1234,
+        },
+        {
+          txid: '72e22e25fa587c01cbd0a86a5927090c9cdf12e47126c99e35b24185c395b257',
+          vout: 0,
+          status: {
+            confirmed: true,
+            block_height: 280,
+            block_hash:
+              '519a8fa6b439da658a83b231486958a26c76ca92811d1e5cc7bcb94bd574c20f',
+            block_time: 1719240702,
+          },
+          value: 5000,
+        },
+        {
+          txid: '72e22e25fa587c01cbd0a86a5727090c9cdf12e47126c99e35b24185c395b278',
+          vout: 0,
+          status: {
+            confirmed: true,
+            block_height: 280,
+            block_hash:
+              '519a8fa6b439da658a83b231486958a26c76ca92811d1e5cc7bcb94bd574c20f',
+            block_time: 1719240702,
+          },
+          value: 1000,
+        },
+      ]
+
+      mockSandshrewMultiCall.mockImplementationOnce(() =>
+        Promise.resolve([
+          { result: specialValueUtxos },
+          { result: 283 },
+          {
+            result: {
+              outpoints: [
+                {
+                  outpoint: {
+                    txid: toTxId(
+                      '72e22e25fa587c01cbd0a86a5727090c9cdf12e47126c99e35b24185c395b278'
+                    ),
+                    vout: 0,
+                  },
+                  runes: {
+                    rune: {
+                      id: {
+                        block: '2',
+                        tx: '0',
+                      },
+                    },
+                    balance: '2000',
+                  },
+                },
+              ],
+            },
+          },
+        ])
+      )
+
+      mockSandshrewMultiCall.mockImplementation((calls) => {
+        const txIdVout = calls[0][1][0]
+        const index = specialValueUtxos.findIndex(
+          (utxo) => `${utxo.txid}:${utxo.vout}` === txIdVout
+        )
+
+        // Spendable UTXO
+        if (index === 0) {
+          return Promise.resolve([
+            {
+              result: {
+                indexed: true,
+                inscriptions: [],
+                runes: {},
+              },
+            }, // ord_output
+            { result: { vout: [{ scriptpubkey: 'mock_script' }] } }, // esplora_tx
+          ])
+        }
+
+        // UTXO with Runes
+        if (index === 1) {
+          return Promise.resolve([
+            {
+              result: {
+                indexed: true,
+                inscriptions: [],
+                runes: {
+                  DIESEL: {
+                    amount: 1000000,
+                    divisibilty: 5,
+                  },
+                },
+              },
+            }, // ord_output
+            { result: { vout: [{ scriptpubkey: 'mock_script' }] } }, // esplora_tx
+          ])
+        }
+
+        // UTXO with Alkanes
+        if (index === 2) {
+          return Promise.resolve([
+            {
+              result: {
+                indexed: true,
+                inscriptions: [],
+                runes: {},
+              },
+            }, // ord_output
+            { result: { vout: [{ scriptpubkey: 'mock_script' }] } }, // esplora_tx
+          ])
+        }
+
+        return Promise.resolve([])
+      })
+
+      const result = await addressUtxos({
+        address:
+          'bc1pklamaklxrdgm7njpudghhq3j7vwxfuak0l7jmrhvluf0cld5etjsga00nj',
+        provider: provider,
+      })
+
+      expect(result.spendableUtxos).toHaveLength(1)
+      expect(result.spendableUtxos.map((utxo) => utxo.satoshis)).toEqual(
+        expect.arrayContaining([1234])
+      )
+
+      expect(result.spendableTotalBalance).toBe(1234)
+      expect(result.totalBalance).toBe(7234)
     })
   })
 
@@ -966,15 +1151,21 @@ describe('utxo', () => {
           else if (address.includes('2')) utxos = mockUtxos.nestedSegwit
           else utxos = mockUtxos.legacy
 
-          return Promise.resolve([{ result: utxos }, { result: 283 }])
+          return Promise.resolve([
+            { result: utxos },
+            { result: 283 },
+            {
+              result: {
+                outpoints: [],
+              },
+            },
+          ])
         }
 
         // Subsequent calls are for processing individual UTXOs
-        const txIdVout = calls[0][1][0]
         return Promise.resolve([
           { result: { indexed: true, inscriptions: [], runes: {} } }, // ord_output
           { result: { vout: [{ scriptpubkey: 'mock_script' }] } }, // esplora_tx
-          { result: [] }, // alkanes_protorunesbyoutpoint
         ])
       })
 
@@ -1030,17 +1221,31 @@ describe('utxo', () => {
           // Only return UTXOs for the first address to avoid duplicate counting
           const address = calls[0][1][0]
           if (address === testAccount.taproot.address) {
-            return Promise.resolve([{ result: mockUtxos }, { result: 283 }])
+            return Promise.resolve([
+              { result: mockUtxos },
+              { result: 283 },
+              {
+                result: {
+                  outpoints: [],
+                },
+              },
+            ])
           }
-          return Promise.resolve([{ result: [] }, { result: 283 }])
+          return Promise.resolve([
+            { result: [] },
+            { result: 283 },
+            {
+              result: {
+                outpoints: [],
+              },
+            },
+          ])
         }
 
         // Subsequent calls are for processing individual UTXOs
-        const txIdVout = calls[0][1][0]
         return Promise.resolve([
           { result: { indexed: true, inscriptions: [], runes: {} } }, // ord_output
           { result: { vout: [{ scriptpubkey: 'mock_script' }] } }, // esplora_tx
-          { result: [] }, // alkanes_protorunesbyoutpoint
         ])
       })
 

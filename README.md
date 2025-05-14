@@ -7,9 +7,10 @@ This is a monorepo containing the Oyl SDK packages. The SDK provides tools for i
 ## Packages
 
 - `@oyl-sdk/core` - Core functionality including account management and provider interfaces
-- `@oyl-sdk/brc20` - BRC-20 protocol implementation
-- `@oyl-sdk/runes` - Runes protocol implementation
 - `@oyl-sdk/alkanes` - Alkanes protocol implementation
+- `@oyl-sdk/brc20` - BRC-20 protocol implementation
+- `@oyl-sdk/btc` - BTC implementation
+- `@oyl-sdk/runes` - Runes protocol implementation
 
 ## Getting Started
 
@@ -90,7 +91,7 @@ To install and set up the library, run:
 ```sh
 $ git clone https://github.com/oyl-wallet/oyl-sdk.git
 $ cd oyl-sdk
-$ yarn install
+$ pnpm install
 ```
 
 ## Usage
@@ -98,7 +99,7 @@ $ yarn install
 ### Prerequisites
 
 - Node.js >= 20
-- yarn
+- pnpm
 
 ### Running the tests
 

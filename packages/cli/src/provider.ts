@@ -1,56 +1,105 @@
-import { DefaultProvider } from '@oyl-sdk/rpc-client';
-import { BitcoinClient } from '@oyl-sdk/btc';
+import { Command } from 'commander'
+import { DEFAULT_PROVIDER } from './constants'
+import { Provider } from '..'
+import { AlkanesCommand } from "./alkane";
+import { metashrew } from "../rpclient/alkanes";
 
-export interface ProviderConfig {
-  bitcoin?: {
-    url: string;
-    username?: string;
-    password?: string;
-  };
-  esplora?: {
-    url: string;
-  };
-  ord?: {
-    url: string;
-  };
-  alkanes?: {
-    url: string;
-  };
-}
 
-export class Provider {
-  private static instance: Provider;
-  private provider: DefaultProvider;
-  private bitcoinClient: BitcoinClient;
+/* @dev example call
+  oyl provider alkanes -method getAlkanesByAddress -params '{"address":"brct21..."}'
 
-  private constructor(config: ProviderConfig) {
-    this.provider = new DefaultProvider(config);
-    this.bitcoinClient = new BitcoinClient(config.bitcoin);
-  }
+  oyl provider alkanes -method simulate -params '{ "alkanes": [],"transaction": "0x", "block": "0x", "height": "20000", "txindex": 0, "target": {"block": "2", "tx": "1"}, "inputs": ["101"],"pointer": 0, "refundPointer": 0, "vout": 0}' -p regtest
 
-  public static getInstance(config?: ProviderConfig): Provider {
-    if (!Provider.instance) {
-      if (!config) {
-        throw new Error('Provider configuration is required for initialization');
-      }
-      Provider.instance = new Provider(config);
+  oyl provider alkanes -method meta -params '{ "target": {"block": "2", "tx": "1"}}' -p regtest
+
+  Note the json format if you need to pass an object.
+*/
+export const alkanesProvider = new AlkanesCommand('alkanes')
+  .description('Returns data based on alkanes method invoked')
+  .requiredOption(
+    '-method, --method <method>',
+    'name of the method you want to call for the api.'
+  )
+  .option(
+    '-params, --parameters <parameters>',
+    'parameters for the api method you are calling.'
+  )
+  .option(
+    '-p, --provider <provider>',
+    'provider to use to access the network.'
+  )
+  .action(async (options) => {
+    const provider: Provider = DEFAULT_PROVIDER[options.provider || 'regtest']
+    let isJson: object
+    try {
+      isJson = JSON.parse(options.parameters)
+      console.log(
+        JSON.stringify(await provider.alkanes[options.method](isJson), null, 2)
+      )
+    } catch (error) {
+      console.log(error)
     }
-    return Provider.instance;
-  }
+  })
 
-  public get bitcoin() {
-    return this.bitcoinClient;
-  }
 
-  public get esplora() {
-    return this.provider.esplora;
-  }
+/* @dev example call
+  oyl provider ord -method getTxOutput -params '{"ticker":"ordi"}' -p bitcoin
 
-  public get ord() {
-    return this.provider.ord;
-  }
+  please note the json format if you need to pass an object.
+*/
+export const ordProviderCall = new Command('ord')
+  .description('Returns data based on ord method invoked')
+  .requiredOption(
+    '-p, --provider <provider>',
+    'provider to use to access the network.'
+  )
+  .requiredOption(
+    '-method, --method <method>',
+    'name of the method you want to call for the api.'
+  )
+  .option(
+    '-params, --parameters <parameters>',
+    'parameters for the ord method you are calling.'
+  )
+  .action(async (options) => {
+    const provider: Provider = DEFAULT_PROVIDER[options.provider]
+    let isJson: object
+    try {
+      isJson = JSON.parse(options.parameters)
+      console.log(await provider.ord[options.method](isJson))
+    } catch (error) {
+      console.log(error)
+    }
+  })
 
-  public get alkanes() {
-    return this.provider.alkanes;
+
+/* @dev example call
+  oyl provider sandShrewMulticall -c '[{"method":"esplora_tx","params":["688f5c239e4e114af461dc1331d02ad5702e795daf2dcf397815e0b05cd23dbc"]},{"method":"btc_getblockcount", "params":[]}]' -p bitcoin
+*/
+export const multiCallSandshrewProviderCall = new Command('sandShrewMulticall')
+.description('Send multiple calls to sandshrew provider')
+.requiredOption(
+  '-p, --provider <provider>',
+  'Network provider type (regtest, bitcoin)'
+)
+.requiredOption(
+  '-c, --calls <calls>',
+  'calls in this format: {method: string, params: string[]}'
+)
+.action(async (options) => {
+  type Call = { method: string; params: string[] }
+
+  let isJson: Call[] = []
+  try {
+    isJson = JSON.parse(options.calls)
+
+    const multiCall: (string | string[])[][] = isJson.map((call: Call) => {
+      return [call.method, call.params]
+    })
+
+    const provider: Provider = DEFAULT_PROVIDER[options.provider]
+    console.log(await provider.sandshrew.multiCall(multiCall))
+  } catch (error) {
+    console.log(error)
   }
-} 
+})

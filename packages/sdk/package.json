@@ -18,7 +18,9 @@
     "@oyl-sdk/runes": "workspace:*",
     "@oyl-sdk/amm": "workspace:*",
     "@oyl-sdk/collectible": "workspace:*",
-    "@oyl-sdk/alkanes": "workspace:*"
+    "@oyl-sdk/alkanes": "workspace:*",
+    "@oyl-sdk/rpc-client": "workspace:*",
+    "@oyl-sdk/cli": "workspace:*"
   },
   "peerDependencies": {
     "@types/node": "20.17.12",

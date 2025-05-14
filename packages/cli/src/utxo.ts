@@ -1,75 +1,82 @@
-import { Command } from 'commander';
-import { Provider, ProviderConfig } from './provider';
-import { DEFAULT_BITCOIN_RPC_URL, DEFAULT_ESPLORA_URL } from './constants';
+import { Command } from 'commander'
+import * as utxo from '../utxo'
+import { Wallet } from './wallet'
 
-export const utxoCommand = new Command('utxo')
-  .description('UTXO management commands')
-  .option('-u, --url <url>', 'Bitcoin RPC URL', DEFAULT_BITCOIN_RPC_URL)
-  .option('-e, --esplora <url>', 'Esplora API URL', DEFAULT_ESPLORA_URL)
-  .option('--username <username>', 'Bitcoin RPC username')
-  .option('--password <password>', 'Bitcoin RPC password');
+export const accountUtxosToSpend = new Command('accountUtxos')
+  .description('Returns available utxos to spend')
+  .requiredOption(
+    '-p, --provider <provider>',
+    'Network provider type (regtest, bitcoin)'
+  )
+  /* @dev example call
+    oyl utxo accountUtxos -p regtest
+  */
+  .action(async (options) => {
+    const wallet: Wallet = new Wallet({ networkType: options.provider })
 
-utxoCommand
-  .command('list <address>')
-  .description('List UTXOs for an address')
-  .action(async (address: string, options: any) => {
-    const config: ProviderConfig = {
-      bitcoin: {
-        url: options.url,
-        username: options.username,
-        password: options.password
-      },
-      esplora: {
-        url: options.esplora
-      }
-    };
+    console.log(
+      await utxo.accountUtxos({
+        account: wallet.account,
+        provider: wallet.provider,
+      })
+    )
+  })
 
-    const provider = Provider.getInstance(config);
-    const utxos = await provider.esplora.getUtxos(address);
-    
-    console.log('Address:', address);
-    console.log('UTXOs:', JSON.stringify(utxos, null, 2));
-  });
+export const accountAvailableBalance = new Command('balance')
+  .description('Returns amount of sats available to spend')
+  .requiredOption(
+    '-p, --provider <provider>',
+    'Network provider type (regtest, bitcoin)'
+  )
+  /* @dev example call
+    oyl utxo balance -p regtest
+  */
+  .action(async (options) => {
+    const wallet: Wallet = new Wallet({ networkType: options.provider })
+    console.log(
+      await utxo.accountBalance({
+        account: wallet.account,
+        provider: wallet.provider,
+      })
+    )
+  })
 
-utxoCommand
-  .command('select <address> <amount>')
-  .description('Select UTXOs for a transaction')
-  .action(async (address: string, amount: number, options: any) => {
-    const config: ProviderConfig = {
-      bitcoin: {
-        url: options.url,
-        username: options.username,
-        password: options.password
-      },
-      esplora: {
-        url: options.esplora
-      }
-    };
+export const addressBRC20Balance = new Command('addressBRC20Balance')
+  .description('Returns all BRC20 balances')
+  .requiredOption(
+    '-p, --provider <provider>',
+    'Network provider type (regtest, bitcoin)'
+  )
+  .requiredOption(
+    '-a, --address <address>',
+    'address you want to get utxos for'
+  )
 
-    const provider = Provider.getInstance(config);
-    const utxos = await provider.esplora.getUtxos(address);
-    
-    // Sort UTXOs by value in descending order
-    const sortedUtxos = utxos.sort((a, b) => b.value - a.value);
-    
-    // Select UTXOs that cover the amount
-    let selectedUtxos = [];
-    let total = 0;
-    
-    for (const utxo of sortedUtxos) {
-      selectedUtxos.push(utxo);
-      total += utxo.value;
-      
-      if (total >= amount) {
-        break;
-      }
-    }
-    
-    if (total < amount) {
-      console.error('Insufficient funds');
-      return;
-    }
-    
-    console.log('Selected UTXOs:', JSON.stringify(selectedUtxos, null, 2));
-    console.log('Total value:', total, 'satoshis');
-  }); 
+  .action(async (options) => {
+    const wallet: Wallet = new Wallet({ networkType: options.provider })
+    console.log(
+      (await wallet.provider.api.getBrc20sByAddress(options.address)).data
+    )
+  })
+
+export const addressUtxosToSpend = new Command('addressUtxos')
+  .description('Returns available utxos to spend')
+  .requiredOption(
+    '-p, --provider <provider>',
+    'Network provider type (regtest, bitcoin)'
+  )
+  .requiredOption(
+    '-a, --address <address>',
+    'address you want to get utxos for'
+  )
+  /* @dev example call
+    oyl utxo addressUtxos -a bcrt1q54zh4xfz2jkqah8nqvp2ltl9mvrmf6s69h6au0 -p alkanes
+  */
+  .action(async (options) => {
+    const wallet: Wallet = new Wallet({ networkType: options.provider })
+
+    await utxo.addressUtxos({
+      address: options.address,
+      provider: wallet.provider,
+    })
+  })

@@ -69,7 +69,7 @@ const getTaprootWitnessSize = (input: any) => {
     witnessSize += leafScript.script.length / 4;
     // Add any witness stack items / 4
     if (input.witnessStack) {
-      witnessSize += input.witnessStack.reduce((sum, item) => sum + item.length, 0) / 4;
+      witnessSize += input.witnessStack.reduce((sum: number, item: Buffer) => sum + item.length, 0) / 4;
     }
   }
 
@@ -89,7 +89,7 @@ const SIZES = {
     input: { 
       unsigned: 41, 
       witness: 26.5,
-      getWitnessSize: (input) => 26.5  // Fixed witness size
+      getWitnessSize: () => 26.5  // Fixed witness size
     },
     output: 31,
   },
@@ -97,7 +97,7 @@ const SIZES = {
     input: { 
       unsigned: 63, 
       witness: 27.75,
-      getWitnessSize: (input) => 27.75  // Fixed witness size
+      getWitnessSize: () => 27.75  // Fixed witness size
     },
     output: 32,
   },
@@ -105,7 +105,7 @@ const SIZES = {
     input: { 
       unsigned: 148, 
       witness: 0,
-      getWitnessSize: (input) => 0  // No witness data
+      getWitnessSize: () => 0  // No witness data
     },
     output: 34,
   },
@@ -131,7 +131,7 @@ export const getEstimatedFee = async ({
   const SEGWIT_OVERHEAD = 1;
 
   // VarInt sizes depend on number of inputs/outputs
-  const getVarIntSize = (n) => {
+  const getVarIntSize = (n: number) => {
     if (n < 0xfd) return 1;
     if (n < 0xffff) return 3;
     if (n < 0xffffffff) return 5;

@@ -1,50 +1,40 @@
-import { Command } from 'commander';
-import { Provider, ProviderConfig } from './provider';
-import { DEFAULT_BITCOIN_RPC_URL, DEFAULT_ESPLORA_URL } from './constants';
+import { Command } from 'commander'
+import * as btc from '../btc'
+import * as utxo from '../utxo'
+import { Wallet } from './wallet'
 
-export const btcCommand = new Command('btc')
-  .description('Bitcoin-related commands')
-  .option('-u, --url <url>', 'Bitcoin RPC URL', DEFAULT_BITCOIN_RPC_URL)
-  .option('-e, --esplora <url>', 'Esplora API URL', DEFAULT_ESPLORA_URL)
-  .option('--username <username>', 'Bitcoin RPC username')
-  .option('--password <password>', 'Bitcoin RPC password');
+export const btcSend = new Command('send')
+  .requiredOption(
+    '-p, --provider <provider>',
+    'Network provider type (regtest, bitcoin)'
+  )
+  .requiredOption('-amt, --amount <amount>', 'amount you want to send')
+  .requiredOption('-t, --to <to>', 'address you want to send to')
+  .option('-feeRate, --feeRate <feeRate>', 'fee rate')
 
-btcCommand
-  .command('get-block <hash>')
-  .description('Get block information')
-  .action(async (hash: string, options: any) => {
-    const config: ProviderConfig = {
-      bitcoin: {
-        url: options.url,
-        username: options.username,
-        password: options.password
-      },
-      esplora: {
-        url: options.esplora
-      }
-    };
+  /* @dev example call 
+  oyl btc send -p regtest -t bcrt1qzr9vhs60g6qlmk7x3dd7g3ja30wyts48sxuemv -amt 1000 -feeRate 2
+*/
 
-    const provider = Provider.getInstance(config);
-    const block = await provider.bitcoin.getBlock(hash);
-    console.log(JSON.stringify(block, null, 2));
-  });
+  .action(async (options) => {
+    const wallet: Wallet = new Wallet({ networkType: options.provider })
+    const account = wallet.account
+    const provider = wallet.provider
+    const signer = wallet.signer
+    const { accountSpendableTotalUtxos } = await utxo.accountUtxos({
+      account,
+      provider,
+    })
 
-btcCommand
-  .command('get-tx <txid>')
-  .description('Get transaction information')
-  .action(async (txid: string, options: any) => {
-    const config: ProviderConfig = {
-      bitcoin: {
-        url: options.url,
-        username: options.username,
-        password: options.password
-      },
-      esplora: {
-        url: options.esplora
-      }
-    };
-
-    const provider = Provider.getInstance(config);
-    const tx = await provider.bitcoin.getTransaction(txid);
-    console.log(JSON.stringify(tx, null, 2));
-  }); 
+    console.log(
+      await btc.send({
+        utxos: accountSpendableTotalUtxos,
+        toAddress: options.to,
+        feeRate: options.feeRate,
+        account,
+        signer,
+        provider,
+        amount: options.amount,
+      })
+    )
+  })

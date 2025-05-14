@@ -8,13 +8,19 @@
     "oyl": "./dist/index.js"
   },
   "scripts": {
-    "build": "tsc",
+    "clean": "rm -rf dist",
+    "build": "npm run clean && tsc",
     "test": "jest",
     "lint": "eslint src/**/*.ts"
   },
   "dependencies": {
+    "@oyl-sdk/core": "workspace:*",
+    "@oyl-sdk/collectible": "workspace:*",
+    "@oyl-sdk/alkanes": "workspace:*",
+    "@oyl-sdk/brc20": "workspace:*",
+    "@oyl-sdk/runes": "workspace:*",
     "@oyl-sdk/btc": "workspace:*",
-    "@oyl/rpc-client": "workspace:*",
+    "@oyl-sdk/rpc-client": "workspace:*",
     "commander": "^11.0.0",
     "inquirer": "^9.0.0"
   },

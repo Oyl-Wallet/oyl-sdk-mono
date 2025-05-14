@@ -1,4 +1,4 @@
-export class EsploraRpc {
+export class EsploraRpcMock {
   async getAddressUtxo() {
     return [
       {

@@ -1,8 +1,7 @@
 import fetch from 'node-fetch'
-import { IRpcMethods } from '../shared/interface'
-import { IBitcoinProvider } from '../interfaces'
+import { IRpcMethods } from '@oyl-sdk/core'
 
-export class SandshrewBitcoinClient implements IBitcoinProvider {
+export class SandshrewBitcoinClient {
   public apiUrl: string
   public bitcoindRpc: IRpcMethods = {}
 
@@ -11,7 +10,7 @@ export class SandshrewBitcoinClient implements IBitcoinProvider {
     this._initializeRpcMethods()
   }
 
-  async _call(method: string, params = []) {
+  async _call(method: string, params: any[] = []) {
     const requestData = {
       jsonrpc: '2.0',
       method: method,
@@ -36,7 +35,7 @@ export class SandshrewBitcoinClient implements IBitcoinProvider {
       }
       return responseData.result
     } catch (error) {
-      if (error.name === 'AbortError') {
+      if (error instanceof Error && error.name === 'AbortError') {
         console.error('Request Timeout:', error)
         throw new Error('Request timed out')
       } else {
@@ -48,59 +47,59 @@ export class SandshrewBitcoinClient implements IBitcoinProvider {
 
   // IBitcoinProvider implementation
   async getBlockCount(): Promise<number> {
-    return this.bitcoindRpc.getBlockCount()
+    return this.bitcoindRpc.getBlockCount!()
   }
 
   async getRawTransaction(txid: string): Promise<string> {
-    return this.bitcoindRpc.getRawTransaction(txid)
+    return this.bitcoindRpc.getRawTransaction!(txid, 0)
   }
 
   async getBlockHash(height: number): Promise<string> {
-    return this.bitcoindRpc.getBlockHash(height)
+    return this.bitcoindRpc.getBlockHash!(height)
   }
 
   async getBlock(blockhash: string): Promise<any> {
-    return this.bitcoindRpc.getBlock(blockhash)
+    return this.bitcoindRpc.getBlock!(blockhash)
   }
 
   async getBlockHeader(blockhash: string): Promise<any> {
-    return this.bitcoindRpc.getBlockHeader(blockhash)
+    return this.bitcoindRpc.getBlockHeader!(blockhash)
   }
 
   async getBlockStats(blockhash: string): Promise<any> {
-    return this.bitcoindRpc.getBlockStats(blockhash)
+    return this.bitcoindRpc.getBlockStats!(blockhash)
   }
 
   async getChainTips(): Promise<any[]> {
-    return this.bitcoindRpc.getChainTips()
+    return this.bitcoindRpc.getChainTips!()
   }
 
   async getDifficulty(): Promise<number> {
-    return this.bitcoindRpc.getDifficulty()
+    return this.bitcoindRpc.getDifficulty!()
   }
 
   async getMempoolInfo(): Promise<any> {
-    return this.bitcoindRpc.getMemPoolInfo()
+    return this.bitcoindRpc.getMemPoolInfo!()
   }
 
   async getMiningInfo(): Promise<any> {
-    return this.bitcoindRpc.getMiningInfo()
+    return this.bitcoindRpc.getMiningInfo!()
   }
 
   async getNetworkInfo(): Promise<any> {
-    return this.bitcoindRpc.getNetworkInfo()
+    return this.bitcoindRpc.getNetworkInfo!()
   }
 
   async getTxOut(txid: string, vout: number): Promise<any> {
-    return this.bitcoindRpc.getTxOut(txid, vout)
+    return this.bitcoindRpc.getTxOut!(txid, vout, true)
   }
 
   async getTxOutSetInfo(): Promise<any> {
-    return this.bitcoindRpc.getTxOutSetInfo()
+    return this.bitcoindRpc.getTxOutSetInfo!()
   }
 
   async verifyChain(): Promise<boolean> {
-    return this.bitcoindRpc.verifyChain()
+    return this.bitcoindRpc.verifyChain!()
   }
 
   // Helper methods
@@ -260,18 +259,17 @@ export class SandshrewBitcoinClient implements IBitcoinProvider {
       walletCreateFundedPSBT: '',
       walletDisplayAddress: 'str',
       walletLock: '',
-      walletPassPhrase: 'string int',
       walletPassphraseChange: '',
       walletProcessPSBT: 'str',
     }
 
     for (const methodName in rpcMethods) {
-      this._createRpcMethod(methodName, rpcMethods[methodName])
+      this._createRpcMethod(methodName, rpcMethods[methodName as keyof typeof rpcMethods])
     }
   }
 
-  _createRpcMethod(methodName, argType) {
-    this.bitcoindRpc[methodName] = async (...args) => {
+  _createRpcMethod(methodName: string, argType: string) {
+    this.bitcoindRpc[methodName as keyof IRpcMethods] = async (...args: any[]) => {
       const convertedArgs = args.map((arg, index) => {
         return this._convertArg(arg, argType)
       })
@@ -280,7 +278,7 @@ export class SandshrewBitcoinClient implements IBitcoinProvider {
     }
   }
 
-  _convertArg(arg, argType) {
+  _convertArg(arg: any, argType: string) {
     switch (argType) {
       case 'str':
         return arg.toString()

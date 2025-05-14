@@ -2,97 +2,16 @@ import * as bitcoin from 'bitcoinjs-lib'
 import ecc from '@bitcoinerlab/secp256k1'
 import { BIP32Factory } from 'bip32'
 import * as bip39 from 'bip39'
-
-export type Account = {
-  taproot: {
-    pubkey: string
-    pubKeyXOnly: string
-    address: string
-    hdPath: string
-  }
-  nativeSegwit: {
-    pubkey: string
-    address: string
-    hdPath: string
-  }
-  nestedSegwit: {
-    pubkey: string
-    address: string
-    hdPath: string
-  }
-  legacy: {
-    pubkey: string
-    address: string
-    hdPath: string
-  }
-  spendStrategy: SpendStrategy
-  network: bitcoin.Network
-}
-
-export type AddressKey = 'nativeSegwit' | 'taproot' | 'nestedSegwit' | 'legacy'
-
-export type WalletStandard =
-  | 'bip44_account_last'
-  | 'bip44_standard'
-  | 'bip32_simple'
-
-export type HDPaths = {
-  legacy?: string
-  nestedSegwit?: string
-  nativeSegwit?: string
-  taproot?: string
-}
-
-export interface SpendStrategy {
-  addressOrder: AddressKey[]
-  utxoSortGreatestToLeast: boolean
-  changeAddress: AddressKey
-}
-
-export interface MnemonicToAccountOptions {
-  network?: bitcoin.networks.Network
-  index?: number
-  spendStrategy?: SpendStrategy
-  hdPaths?: HDPaths
-}
-
-export interface PrivateKeyAccount {
-  legacy: {
-    privateKey: string
-    hdPath: string
-  }
-  nestedSegwit: {
-    privateKey: string
-    hdPath: string
-  }
-  nativeSegwit: {
-    privateKey: string
-    hdPath: string
-  }
-  taproot: {
-    privateKey: string
-    hdPath: string
-  }
-}
-
-export interface PrivateKeyAccount {
-  legacy: {
-    privateKey: string
-    hdPath: string
-  }
-  nestedSegwit: {
-    privateKey: string
-    hdPath: string
-  }
-  nativeSegwit: {
-    privateKey: string
-    hdPath: string
-  }
-  taproot: {
-    privateKey: string
-    hdPath: string
-  }
-} 
+import { addressFormats } from '@sadoprotocol/ordit-sdk'
+import { 
+  Account,
+  MnemonicToAccountOptions,
+  PrivateKeyAccount,
+  AddressType,
+  AddressKey,
+  WalletStandard,
+  HDPaths,
+} from '../types'
 
 const bip32 = BIP32Factory(ecc)
 bitcoin.initEccLib(ecc)
@@ -316,3 +235,49 @@ export const getWalletPrivateKeys = ({
     },
   }
 } 
+
+export function getAddressType(address: string): AddressType | null {
+  if (
+    addressFormats.mainnet.p2pkh.test(address) ||
+    addressFormats.testnet.p2pkh.test(address) ||
+    addressFormats.regtest.p2pkh.test(address)
+  ) {
+    return AddressType.P2PKH
+  } else if (
+    addressFormats.mainnet.p2tr.test(address) ||
+    addressFormats.testnet.p2tr.test(address) ||
+    addressFormats.regtest.p2tr.test(address)
+  ) {
+    return AddressType.P2TR
+  } else if (
+    addressFormats.mainnet.p2sh.test(address) ||
+    addressFormats.testnet.p2sh.test(address) ||
+    addressFormats.regtest.p2sh.test(address)
+  ) {
+    return AddressType.P2SH_P2WPKH
+  } else if (
+    addressFormats.mainnet.p2wpkh.test(address) ||
+    addressFormats.testnet.p2wpkh.test(address) ||
+    addressFormats.regtest.p2wpkh.test(address)
+  ) {
+    return AddressType.P2WPKH
+  } else {
+    return null
+  }
+}
+
+export function getAddressKey(address: string): AddressKey | null {
+  const addressType = getAddressType(address)
+  switch (addressType) {
+    case AddressType.P2WPKH:
+      return 'nativeSegwit'
+    case AddressType.P2SH_P2WPKH:
+      return 'nestedSegwit'
+    case AddressType.P2TR:
+      return 'taproot'
+    case AddressType.P2PKH:
+      return 'legacy'
+    default:
+      return null
+  }
+}

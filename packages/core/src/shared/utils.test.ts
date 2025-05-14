@@ -1,6 +1,7 @@
 import { mnemonicToAccount } from '../account/account'
-import { AddressType } from './interface'
-import { decodeCBOR, getAddressKey, getAddressType } from './utils'
+import { AddressType } from '../types'
+import { decodeCBOR } from './utils'
+import { getAddressKey, getAddressType } from '../account'
 import * as bitcoin from 'bitcoinjs-lib'
 
 describe('Shared utils', () => {

@@ -1,59 +1,54 @@
-import { Command } from 'commander';
-import { Provider, ProviderConfig } from './provider';
-import { DEFAULT_BITCOIN_RPC_URL, DEFAULT_ESPLORA_URL, DEFAULT_ORD_URL } from './constants';
+import { Command } from 'commander'
+import * as brc20 from '../brc20'
+import * as utxo from '../utxo'
+import { Wallet } from './wallet'
 
-export const brc20Command = new Command('brc20')
-  .description('BRC-20 token commands')
-  .option('-u, --url <url>', 'Bitcoin RPC URL', DEFAULT_BITCOIN_RPC_URL)
-  .option('-e, --esplora <url>', 'Esplora API URL', DEFAULT_ESPLORA_URL)
-  .option('-o, --ord <url>', 'Ord API URL', DEFAULT_ORD_URL)
-  .option('--username <username>', 'Bitcoin RPC username')
-  .option('--password <password>', 'Bitcoin RPC password');
+export const brc20Send = new Command('send')
+  .requiredOption(
+    '-p, --provider <provider>',
+    'Network provider type (regtest, bitcoin)'
+  )
+  .requiredOption('-amt, --amount <amount>', 'amount you want to send')
+  .requiredOption('-t, --to <to>', 'address you want to send to')
+  .requiredOption('-tick', '--ticker <ticker>', 'brc20 ticker to send')
+  .option('-legacy, --legacy <legacy>', 'legacy private key')
+  .option('-taproot, --taproot <taproot>', 'taproot private key')
+  .option(
+    '-nested, --nested-segwit <nestedSegwit>',
+    'nested segwit private key'
+  )
+  .option(
+    '-native, --native-segwit <nativeSegwit>',
+    'native segwit private key'
+  )
+  .option('-feeRate, --feeRate <feeRate>', 'fee rate')
 
-brc20Command
-  .command('deploy <ticker> <maxSupply>')
-  .description('Deploy a new BRC-20 token')
-  .action(async (ticker: string, maxSupply: number, options: any) => {
-    const config: ProviderConfig = {
-      bitcoin: {
-        url: options.url,
-        username: options.username,
-        password: options.password
-      },
-      esplora: {
-        url: options.esplora
-      },
-      ord: {
-        url: options.ord
-      }
-    };
+  /* @dev example call 
+  oyl brc20 send -p regtest -t bcrt1qzr9vhs60g6qlmk7x3dd7g3ja30wyts48sxuemv -tick toyl -amt 1000 -feeRate 2
+*/
 
-    const provider = Provider.getInstance(config);
-    // Implementation for BRC-20 deployment
-    console.log('Deploying BRC-20 token:', ticker);
-    console.log('Max supply:', maxSupply);
-  });
+  .action(async (options) => {
+    const wallet: Wallet = new Wallet({ networkType: options.provider })
+    const account = wallet.account
+    const provider = wallet.provider
+    const signer = wallet.signer
 
-brc20Command
-  .command('mint <ticker> <amount>')
-  .description('Mint BRC-20 tokens')
-  .action(async (ticker: string, amount: number, options: any) => {
-    const config: ProviderConfig = {
-      bitcoin: {
-        url: options.url,
-        username: options.username,
-        password: options.password
-      },
-      esplora: {
-        url: options.esplora
-      },
-      ord: {
-        url: options.ord
-      }
-    };
+    const { accountSpendableTotalUtxos, accountSpendableTotalBalance } =
+      await utxo.accountUtxos({ account, provider })
 
-    const provider = Provider.getInstance(config);
-    // Implementation for BRC-20 minting
-    console.log('Minting BRC-20 tokens:', ticker);
-    console.log('Amount:', amount);
-  }); 
+    console.log(
+      await brc20.send({
+        gatheredUtxos: {
+          utxos: accountSpendableTotalUtxos,
+          totalAmount: accountSpendableTotalBalance,
+        },
+        ticker: options.ticker,
+        toAddress: options.to,
+        feeRate: options.feeRate,
+        account,
+        signer,
+        provider,
+        amount: options.amount,
+      })
+    )
+  })

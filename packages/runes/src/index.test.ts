@@ -4,16 +4,24 @@ import {
   createEtchReveal,
   createMintPsbt,
   createSendPsbt,
-} from '../../../src/rune'
+} from './rune'
 import {
   Account,
   getWalletPrivateKeys,
   mnemonicToAccount,
-} from '../../../src/account/account'
-import { Provider } from '../../../src/provider/provider'
-import { FormattedUtxo } from '../utxo/utxo'
-import { RuneUTXO, tweakSigner } from '../../../src'
-import { Signer, walletInit } from '../signer/signer'
+  Provider,
+  FormattedUtxo,
+  RuneUTXO,
+  Signer,
+  walletInit,
+} from '@oyl-sdk/core'
+import { tweakSigner } from '@oyl-sdk/core'
+
+// Add Jest globals
+declare const jest: any
+declare const describe: any
+declare const it: any
+declare const expect: any
 
 const provider = new Provider({
   url: '',
@@ -66,6 +74,9 @@ const testFormattedUtxos: FormattedUtxo[] = [
     scriptPk,
     address: account.taproot.address,
     inscriptions: [],
+    runes: {},
+    alkanes: {},
+    indexed: false,
   },
   {
     txId: '72e22e25fa587c01cbd0a86a5727090c9cdf12e47126c99e35b24185c395b275',
@@ -75,6 +86,9 @@ const testFormattedUtxos: FormattedUtxo[] = [
     scriptPk,
     address: account.nativeSegwit.address,
     inscriptions: [],
+    runes: {},
+    alkanes: {},
+    indexed: false,
   },
 ]
 

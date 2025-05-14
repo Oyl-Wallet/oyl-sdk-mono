@@ -1,13 +1,11 @@
 import { Provider } from '@oyl-sdk/core'
 import * as bitcoin from 'bitcoinjs-lib'
 import { Account, Signer } from '@oyl-sdk/core'
-import { minimumFee } from '@oyl-sdk/btc'
-import { getEstimatedFee } from '@oyl-sdk/core'
+import { minimumFee } from '@oyl-sdk/core'
 import { OylTransactionError } from '@oyl-sdk/core'
 import { GatheredUtxos } from '@oyl-sdk/core'
 import { getAddressType } from '@oyl-sdk/core'
-import { FormattedUtxo } from '@utxo/utxo'
-import { findXAmountOfSats } from './utils'
+import { findXAmountOfSats } from '@oyl-sdk/core'
 
 export interface PoolConfig {
   tokenA: string
@@ -54,7 +52,7 @@ export const createPool = async ({
 
     return result
   } catch (error) {
-    throw new OylTransactionError(error)
+    throw new OylTransactionError(Error(String(error)))
   }
 }
 
@@ -79,7 +77,7 @@ export const createPoolPsbt = async ({
       nonTaprootInputCount: 0,
       outputCount: 2,
     })
-    const calculatedFee = minFee * feeRate < 250 ? 250 : minFee * feeRate
+    const calculatedFee = minFee * feeRate! < 250 ? 250 : minFee * feeRate!
     let finalFee = fee ? fee : calculatedFee
 
     let psbt = new bitcoin.Psbt({ network: provider.network })
@@ -96,7 +94,7 @@ export const createPoolPsbt = async ({
         nonTaprootInputCount: 0,
         outputCount: 2,
       })
-      finalFee = txSize * feeRate < 250 ? 250 : txSize * feeRate
+      finalFee = txSize * feeRate! < 250 ? 250 : txSize * feeRate!
 
       if (gatheredUtxos.totalAmount < finalFee) {
         gatheredUtxos = findXAmountOfSats(
@@ -173,6 +171,6 @@ export const createPoolPsbt = async ({
 
     return { psbt: psbt.toBase64() }
   } catch (error) {
-    throw new OylTransactionError(error)
+    throw new OylTransactionError(Error(String(error)))
   }
 } 

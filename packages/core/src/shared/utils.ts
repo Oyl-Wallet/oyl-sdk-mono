@@ -4,48 +4,15 @@ import ecc from '@bitcoinerlab/secp256k1'
 import BigNumber from 'bignumber.js'
 import { maximumScriptBytes } from './constants'
 import { toXOnly } from 'bitcoinjs-lib/src/psbt/bip371'
-import { SandshrewBitcoinClient } from '@oyl-sdk/rpc-client/sandshrew'
-import { EsploraRpc } from '@oyl-sdk/rpc-client/esplora'
+import { SandshrewBitcoinClient } from '@oyl-sdk/rpc-client'
+import { EsploraRpc } from '@oyl-sdk/rpc-client'
+import { Network } from '../types/network'
 import { Provider } from '../provider/provider'
-import { addressFormats } from '@sadoprotocol/ordit-sdk'
-import { AddressKey } from '@oyl-sdk/core/account'
+import { FormattedUtxo } from '../types/utxo'
 import * as CBOR from 'cbor-x'
+import { DecodedCBOR, DecodedCBORValue, IBISWalletIx } from '../types'
 
 bitcoin.initEccLib(ecc)
-
-export interface IBISWalletIx {
-  validity: any
-  isBrc: boolean
-  isSns: boolean
-  name: any
-  amount: any
-  isValidTransfer: any
-  operation: any
-  ticker: any
-  isJson: boolean
-  content?: string
-  inscription_name: any
-  inscription_id: string
-  inscription_number: number
-  metadata: any
-  owner_wallet_addr: string
-  mime_type: string
-  last_sale_price: any
-  slug: any
-  collection_name: any
-  content_url: string
-  bis_url: string
-
-  wallet?: string
-  media_length?: number
-  genesis_ts?: number
-  genesis_height?: number
-  genesis_fee?: number
-  output_value?: number
-  satpoint?: string
-  collection_slug?: string
-  confirmations?: number
-}
 
 export const addressTypeMap = { 0: 'p2pkh', 1: 'p2tr', 2: 'p2sh', 3: 'p2wpkh' }
 export const inscriptionSats = 546
@@ -63,7 +30,7 @@ function tapTweakHash(pubKey: Buffer, h: Buffer | undefined): Buffer {
 }
 
 export function getNetwork(
-  value: Network | 'main' | 'mainnet' | 'regtest' | 'testnet' | 'signet'
+  value: Network | 'main'
 ) {
   if (value === 'mainnet' || value === 'main') {
     return bitcoin.networks['bitcoin']
@@ -90,7 +57,7 @@ export async function getFee({
   })
 
   const signedHexPsbt = rawPsbt.extractTransaction().toHex()
-  const tx = await provider.sandshrew.bitcoindRpc.testMemPoolAccept([
+  const tx = await provider.sandshrew.bitcoindRpc.testMemPoolAccept!([
     signedHexPsbt,
   ])
   const vsize = tx[0].vsize
@@ -98,8 +65,6 @@ export async function getFee({
   const accurateFee = vsize * feeRate
   return accurateFee
 }
-
-
 
 export function satoshisToAmount(val: number) {
   const num = new BigNumber(val)
@@ -121,8 +86,6 @@ export const validator = (
   signature: Buffer
 ): boolean => ECPair.fromPublicKey(pubkey).verify(msghash, signature)
 
-
-
 export const getWitnessDataChunk = function (
   content: string,
   encodeType: BufferEncoding = 'utf8'
@@ -138,17 +101,6 @@ export const getWitnessDataChunk = function (
   }
 
   return contentChunks
-}
-
-export function calculateAmountGathered(utxoArray: IBlockchainInfoUTXO[]) {
-  return utxoArray?.reduce((prev, currentValue) => prev + currentValue.value, 0)
-}
-
-export function calculateAmountGatheredUtxo(utxoArray: Utxo[]) {
-  return utxoArray?.reduce(
-    (prev, currentValue) => prev + currentValue.satoshis,
-    0
-  )
 }
 
 export const formatInputsToSign = async ({
@@ -182,39 +134,8 @@ export const formatInputsToSign = async ({
   return _psbt
 }
 
-export const timeout = async (n) =>
+export const timeout = async (n: number) =>
   await new Promise((resolve) => setTimeout(resolve, n))
-
-export const signInputs = async (
-  psbt: bitcoin.Psbt,
-  toSignInputs: ToSignInput[],
-  taprootPubkey: string,
-  segwitPubKey: string,
-  segwitSigner: any,
-  taprootSigner: any
-) => {
-  const taprootInputs: ToSignInput[] = []
-  const segwitInputs: ToSignInput[] = []
-  const inputs = psbt.data.inputs
-  toSignInputs.forEach(({ publicKey }, i) => {
-    const input = inputs[i]
-    if (publicKey === taprootPubkey && !input.finalScriptWitness) {
-      taprootInputs.push(toSignInputs[i])
-    }
-    if (segwitPubKey && segwitSigner) {
-      if (publicKey === segwitPubKey) {
-        segwitInputs.push(toSignInputs[i])
-      }
-    }
-  })
-  if (taprootInputs.length > 0) {
-    await taprootSigner(psbt, taprootInputs)
-  }
-  if (segwitSigner && segwitInputs.length > 0) {
-    await segwitSigner(psbt, segwitInputs)
-  }
-  return psbt
-}
 
 export const createInscriptionScript = (
   pubKey: Buffer,
@@ -265,52 +186,6 @@ export function hexToLittleEndian(hex: string) {
   return littleEndianHex
 }
 
-export function getAddressType(address: string): AddressType | null {
-  if (
-    addressFormats.mainnet.p2pkh.test(address) ||
-    addressFormats.testnet.p2pkh.test(address) ||
-    addressFormats.regtest.p2pkh.test(address)
-  ) {
-    return AddressType.P2PKH
-  } else if (
-    addressFormats.mainnet.p2tr.test(address) ||
-    addressFormats.testnet.p2tr.test(address) ||
-    addressFormats.regtest.p2tr.test(address)
-  ) {
-    return AddressType.P2TR
-  } else if (
-    addressFormats.mainnet.p2sh.test(address) ||
-    addressFormats.testnet.p2sh.test(address) ||
-    addressFormats.regtest.p2sh.test(address)
-  ) {
-    return AddressType.P2SH_P2WPKH
-  } else if (
-    addressFormats.mainnet.p2wpkh.test(address) ||
-    addressFormats.testnet.p2wpkh.test(address) ||
-    addressFormats.regtest.p2wpkh.test(address)
-  ) {
-    return AddressType.P2WPKH
-  } else {
-    return null
-  }
-}
-
-export function getAddressKey(address: string): AddressKey {
-  const addressType = getAddressType(address)
-  switch (addressType) {
-    case AddressType.P2WPKH:
-      return 'nativeSegwit'
-    case AddressType.P2SH_P2WPKH:
-      return 'nestedSegwit'
-    case AddressType.P2TR:
-      return 'taproot'
-    case AddressType.P2PKH:
-      return 'legacy'
-    default:
-      return null
-  }
-}
-
 export async function waitForTransaction({
   txId,
   sandshrewBtcClient,
@@ -323,7 +198,7 @@ export async function waitForTransaction({
 
   while (true) {
     try {
-      const result = await sandshrewBtcClient.bitcoindRpc.getMemPoolEntry(txId)
+      const result = await sandshrewBtcClient.bitcoindRpc.getMemPoolEntry!(txId)
 
       if (result) {
         await delay(5000)
@@ -406,6 +281,22 @@ export function calculateTaprootTxSize(
   return baseTxSize + totalInputSize + totalOutputSize
 }
 
+export const minimumFee = ({
+  taprootInputCount,
+  nonTaprootInputCount,
+  outputCount,
+}: {
+  taprootInputCount: number
+  nonTaprootInputCount: number
+  outputCount: number
+}) => {
+  return calculateTaprootTxSize(
+    taprootInputCount,
+    nonTaprootInputCount,
+    outputCount
+  )
+}
+
 export const isValidJSON = (str: string) => {
   try {
     JSON.parse(str)
@@ -416,7 +307,7 @@ export const isValidJSON = (str: string) => {
 }
 
 export const encodeVarint = (bigIntValue: any) => {
-  const bufferArray = []
+  const bufferArray: number[] = []
   let num = bigIntValue
 
   do {
@@ -431,8 +322,6 @@ export const encodeVarint = (bigIntValue: any) => {
 
   return { varint: Buffer.from(bufferArray) }
 }
-
-
 
 export function decodeCBOR(hex: string): DecodedCBOR {
   const buffer = Buffer.from(hex, 'hex')
@@ -451,7 +340,7 @@ export const getVSize = (data: Buffer) => {
   return Math.ceil(totalSize / 4)
 }
 
-export const packUTF8 = function (s) {
+export const packUTF8 = function (s: string) {
   const result = [''];
   let b = 0;
   for (let i = 0; i < s.length; i++) {
@@ -467,3 +356,22 @@ export const packUTF8 = function (s) {
   }
   return result.map((v) => v && Buffer.from(Array.from(Buffer.from(v)).reverse()).toString('hex') || '')
 }
+
+export function findXAmountOfSats(utxos: FormattedUtxo[], target: number) {
+  let totalAmount = 0
+  const selectedUtxos: FormattedUtxo[] = []
+
+  for (const utxo of utxos) {
+    if (totalAmount >= target) break
+
+    selectedUtxos.push(utxo)
+    totalAmount += utxo.satoshis
+  }
+  return {
+    utxos: selectedUtxos,
+    totalAmount,
+  }
+}
+
+export const toTxId = (rawLeTxid: string) =>
+  Buffer.from(rawLeTxid, 'hex').reverse().toString('hex')

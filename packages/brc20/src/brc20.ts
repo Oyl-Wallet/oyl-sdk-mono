@@ -1,21 +1,21 @@
-import { OylTransactionError } from '@oyl-sdk/core'
-import { Provider } from '@oyl-sdk/core'
 import * as bitcoin from 'bitcoinjs-lib'
 import {
+  Provider,
+  Account,
   calculateTaprootTxSize,
   createInscriptionScript,
   findXAmountOfSats,
   formatInputsToSign,
   getOutputValueByVOutIndex,
   tweakSigner,
+  GatheredUtxos,
+  OylTransactionError,
+  getAddressType,
+  Signer,
 } from '@oyl-sdk/core'
-import { Account } from '@oyl-sdk/core'
 import { minimumFee } from '@oyl-sdk/core'
 import { toXOnly } from 'bitcoinjs-lib/src/psbt/bip371'
 import { LEAF_VERSION_TAPSCRIPT } from 'bitcoinjs-lib/src/payments/bip341'
-import { getAddressType } from '@oyl-sdk/core'
-import { Signer } from '@oyl-sdk/core'
-import { GatheredUtxos } from '@oyl-sdk/core'
 
 export const transferEstimate = async ({
   gatheredUtxos,
@@ -138,7 +138,7 @@ export const transferEstimate = async ({
 
     return { psbt: updatedPsbt.toBase64(), fee: finalFee }
   } catch (error) {
-    throw new OylTransactionError(error)
+    throw new OylTransactionError(error instanceof Error ? error : new Error(String(error)))
   }
 }
 
@@ -194,6 +194,9 @@ export const commit = async ({
       network: provider.network,
     })
 
+    if (!inscriberInfo.address) {
+      throw new Error('Failed to generate inscriber address')
+    }
     psbt.addOutput({
       value: Number(feeForReveal) + 546,
       address: inscriberInfo.address,
@@ -292,7 +295,7 @@ export const commit = async ({
       fee: finalFee,
     }
   } catch (error) {
-    throw new OylTransactionError(error)
+    throw new OylTransactionError(error instanceof Error ? error : new Error(String(error)))
   }
 }
 
@@ -326,7 +329,7 @@ export const reveal = async ({
     })
 
     const revealTxBaseFee = minFee * feeRate < 250 ? 250 : minFee * feeRate
-    const revealTxChange = fee === 0 ? 0 : Number(revealTxBaseFee) - fee
+    const revealTxChange = (fee ?? 0) === 0 ? 0 : Number(revealTxBaseFee) - (fee ?? 0)
 
     const commitTxOutput = await getOutputValueByVOutIndex({
       txId: commitTxId,
@@ -347,6 +350,9 @@ export const reveal = async ({
       network: provider.network,
     })
 
+    if (!output) {
+      throw new Error('Failed to generate output script')
+    }
     psbt.addInput({
       hash: commitTxId,
       index: 0,
@@ -381,7 +387,7 @@ export const reveal = async ({
       fee: revealTxChange,
     }
   } catch (error) {
-    throw new OylTransactionError(error)
+    throw new OylTransactionError(error instanceof Error ? error : new Error(String(error)))
   }
 }
 
@@ -415,7 +421,7 @@ export const transfer = async ({
     })
 
     const transferTxBaseFee = minFee * feeRate < 250 ? 250 : minFee * feeRate
-    const transferTxChange = fee === 0 ? 0 : Number(transferTxBaseFee) - fee
+    const transferTxChange = (fee ?? 0) === 0 ? 0 : Number(transferTxBaseFee) - (fee ?? 0)
 
     const commitTxOutput = await getOutputValueByVOutIndex({
       txId: commitChangeUtxoId,
@@ -475,7 +481,7 @@ export const transfer = async ({
 
     return { psbt: updatedPsbt.toBase64() }
   } catch (error) {
-    throw new OylTransactionError(error)
+    throw new OylTransactionError(error instanceof Error ? error : new Error(String(error)))
   }
 }
 
@@ -540,7 +546,7 @@ export const send = async ({
       feeRate,
       tweakedTaprootKeyPair,
       provider,
-      commitTxId: commitResult.txid,
+      commitTxId: commitResult.txId,
     })
 
     const { signedPsbt: signedRevealPsbt } = await signer.signAllInputs({
@@ -553,8 +559,8 @@ export const send = async ({
     })
 
     const { psbt: transferPsbt } = await transfer({
-      commitChangeUtxoId: commitResult.txid,
-      revealTxId: revealResult.txid,
+      commitChangeUtxoId: commitResult.txId,
+      revealTxId: revealResult.txId,
       toAddress,
       feeRate,
       account,
@@ -572,6 +578,6 @@ export const send = async ({
 
     return transferResult
   } catch (error) {
-    throw new OylTransactionError(error)
+    throw new OylTransactionError(error instanceof Error ? error : new Error(String(error)))
   }
 } 
