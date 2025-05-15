@@ -94,6 +94,24 @@ $ cd oyl-sdk
 $ pnpm install
 ```
 
+### Installing Packages from the Monorepo
+
+If you want to use specific packages from this monorepo in your project, you can install them directly from GitHub. Add the following to your project's `package.json`:
+
+```json
+{
+  "dependencies": {
+    "@oyl-sdk/core": "github:Oyl-Wallet/oyl-sdk-mono#main:packages/core",
+    "@oyl-sdk/brc20": "github:Oyl-Wallet/oyl-sdk-mono#main:packages/brc20"
+  }
+}
+```
+
+Note: 
+- Replace `main` with your desired branch name (e.g., `develop`)
+- The `:packages/core` syntax is important for monorepo packages
+- Make sure to run `npm install` or your preferred package manager's install command after adding these dependencies
+
 ## Usage
 
 ### Prerequisites

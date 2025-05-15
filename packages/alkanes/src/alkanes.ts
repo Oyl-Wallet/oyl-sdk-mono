@@ -170,7 +170,7 @@ export const createExecutePsbt = async ({
       psbtHex: formatted.toHex(),
     }
   } catch (err) {
-    throw new OylTransactionError(Error(String(err)))
+    throw new OylTransactionError(err as Error)
   }
 }
 
@@ -247,10 +247,6 @@ export const createDeployCommitPsbt = async ({
 }) => {
   try {
     let gatheredUtxos = selectSpendableUtxos(utxos, account.spendStrategy)
-
-    if (!feeRate) {
-      feeRate = (await provider.esplora.getFeeEstimates())['1']
-    }
 
     const minFee = minimumFee({
       taprootInputCount: 2,
@@ -375,7 +371,7 @@ export const createDeployCommitPsbt = async ({
 
     return { psbt: formattedPsbtTx.toBase64(), script }
   } catch (error) {
-    throw new OylTransactionError(Error(String(error)))
+    throw new OylTransactionError(error as Error)
   }
 }
 
@@ -488,7 +484,7 @@ export const createDeployRevealPsbt = async ({
     })
 
     if (!output) {
-      throw new OylTransactionError(Error('Failed to generate p2tr output'))
+      throw new OylTransactionError(new Error('Failed to generate output script'))
     }
 
     psbt.addInput({
@@ -529,7 +525,7 @@ export const createDeployRevealPsbt = async ({
       fee: revealTxChange,
     }
   } catch (error) {
-    throw new OylTransactionError(Error(String(error)))
+    throw new OylTransactionError(error as Error)
   }
 }
 
@@ -559,6 +555,8 @@ export const deployReveal = async ({
 
   const tweakedPublicKey = tweakedTaprootKeyPair.publicKey.toString('hex')
 
+  const effectiveFeeRate = feeRate ?? (await provider.esplora.getFeeEstimates())['1']
+
   const { fee } = await actualTransactRevealFee({
     protostone,
     tweakedPublicKey,
@@ -566,7 +564,7 @@ export const deployReveal = async ({
     commitTxId,
     script: Buffer.from(script, 'hex'),
     provider,
-    feeRate,
+    feeRate: effectiveFeeRate,
   })
 
   const { psbt: finalRevealPsbt } = await createTransactReveal({
@@ -576,7 +574,7 @@ export const deployReveal = async ({
     commitTxId,
     script: Buffer.from(script, 'hex'),
     provider,
-    feeRate: feeRate ?? (await provider.esplora.getFeeEstimates())['1'],
+    feeRate: effectiveFeeRate,
     fee,
   })
 
@@ -613,9 +611,7 @@ export const actualTransactRevealFee = async ({
   provider: Provider
   feeRate?: number
 }) => {
-  if (!feeRate) {
-    feeRate = (await provider.esplora.getFeeEstimates())['1']
-  }
+  const effectiveFeeRate = feeRate ?? (await provider.esplora.getFeeEstimates())['1']
 
   const { psbt } = await createTransactReveal({
     protostone,
@@ -624,11 +620,11 @@ export const actualTransactRevealFee = async ({
     script,
     tweakedPublicKey,
     provider,
-    feeRate: feeRate ?? (await provider.esplora.getFeeEstimates())['1'],
+    feeRate: effectiveFeeRate,
   })
 
   const { fee: estimatedFee } = await getEstimatedFee({
-    feeRate: feeRate ?? (await provider.esplora.getFeeEstimates())['1'],
+    feeRate: effectiveFeeRate,
     psbt,
     provider,
   })
@@ -640,12 +636,12 @@ export const actualTransactRevealFee = async ({
     script,
     tweakedPublicKey,
     provider,
-    feeRate: feeRate ?? (await provider.esplora.getFeeEstimates())['1'],
+    feeRate: effectiveFeeRate,
     fee: estimatedFee,
   })
 
   const { fee: finalFee, vsize } = await getEstimatedFee({
-    feeRate: feeRate ?? (await provider.esplora.getFeeEstimates())['1'],
+    feeRate: effectiveFeeRate,
     psbt: finalPsbt,
     provider,
   })
@@ -729,6 +725,8 @@ export const executePsbt = async ({
   frontendFee?: bigint
   feeAddress?: string
 }) => {
+  const effectiveFeeRate = feeRate ?? (await provider.esplora.getFeeEstimates())['1']
+
   const { fee } = await actualExecuteFee({
     alkanesUtxos,
     frontendFee,
@@ -737,7 +735,7 @@ export const executePsbt = async ({
     account,
     protostone,
     provider,
-    feeRate: feeRate ?? (await provider.esplora.getFeeEstimates())['1'],
+    feeRate: effectiveFeeRate,
   })
 
   const { psbt: finalPsbt } = await createExecutePsbt({
@@ -748,7 +746,7 @@ export const executePsbt = async ({
     account,
     protostone,
     provider,
-    feeRate,
+    feeRate: effectiveFeeRate,
     fee,
   })
 
@@ -776,6 +774,8 @@ export const execute = async ({
   frontendFee?: bigint
   feeAddress?: string
 }) => {
+  const effectiveFeeRate = feeRate ?? (await provider.esplora.getFeeEstimates())['1']
+
   const { fee } = await actualExecuteFee({
     alkanesUtxos,
     frontendFee,
@@ -784,7 +784,7 @@ export const execute = async ({
     account,
     protostone,
     provider,
-    feeRate: feeRate ?? (await provider.esplora.getFeeEstimates())['1'],
+    feeRate: effectiveFeeRate,
   })
 
   const { psbt: finalPsbt } = await createExecutePsbt({
@@ -795,7 +795,7 @@ export const execute = async ({
     account,
     protostone,
     provider,
-    feeRate,
+    feeRate: effectiveFeeRate,
     fee,
   })
 
@@ -865,7 +865,7 @@ export const createTransactReveal = async ({
     })
 
     if (!output) {
-      throw new OylTransactionError(Error('Failed to generate p2tr output'))
+      throw new OylTransactionError(new Error('Failed to generate output script'))
     }
 
     psbt.addInput({
@@ -906,8 +906,9 @@ export const createTransactReveal = async ({
       fee: revealTxChange,
     }
   } catch (error) {
-    throw new OylTransactionError(Error(String(error)))
+    throw new OylTransactionError(error as Error)
   }
 }
 
-
+export const toTxId = (rawLeTxid: string) =>
+  Buffer.from(rawLeTxid, 'hex').reverse().toString('hex')

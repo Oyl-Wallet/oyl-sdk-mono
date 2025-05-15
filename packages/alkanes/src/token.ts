@@ -92,9 +92,6 @@ export const createSendPsbt = async ({
       nonTaprootInputCount: 0,
       outputCount: 3,
     })
-    if (!feeRate) {
-      feeRate = (await provider.esplora.getFeeEstimates())['1']
-    }
     const calculatedFee = minFee * feeRate! < 250 ? 250 : minFee * feeRate!
     let finalFee = fee ? fee : calculatedFee
 
@@ -280,7 +277,7 @@ export const createSendPsbt = async ({
 
     return { psbt: formattedPsbtTx.toBase64() }
   } catch (error) {
-    throw new OylTransactionError(error instanceof Error ? error : new Error(String(error)))
+    throw new OylTransactionError(error as Error)
   }
 }
 
@@ -303,6 +300,8 @@ export const send = async ({
   provider: Provider
   signer: Signer
 }) => {
+  const effectiveFeeRate = feeRate ?? (await provider.esplora.getFeeEstimates())['1']
+
   const { fee } = await actualSendFee({
     utxos,
     account,
@@ -310,7 +309,7 @@ export const send = async ({
     amount,
     provider,
     toAddress,
-    feeRate: feeRate ?? (await provider.esplora.getFeeEstimates())['1'],
+    feeRate: effectiveFeeRate,
   })
 
   const { psbt: finalPsbt } = await createSendPsbt({
@@ -320,7 +319,7 @@ export const send = async ({
     amount,
     provider,
     toAddress,
-    feeRate,
+    feeRate: effectiveFeeRate,
     fee,
   })
 
@@ -406,12 +405,15 @@ export const split = async ({
   feeRate?: number
   signer: Signer
 }) => {
+  const effectiveFeeRate = feeRate ?? (await provider.esplora.getFeeEstimates())['1']
+
   const { fee } = await actualSplitFee({
+    alkaneUtxos,
     gatheredUtxos,
     account,
     protostone,
     provider,
-    feeRate: feeRate ?? (await provider.esplora.getFeeEstimates())['1'],
+    feeRate: effectiveFeeRate,
     signer,
   })
 
@@ -421,7 +423,7 @@ export const split = async ({
     account,
     protostone,
     provider,
-    feeRate,
+    feeRate: effectiveFeeRate,
     fee,
   })
 
@@ -455,25 +457,22 @@ export const createSplitPsbt = async ({
   fee?: number
 }) => {
   try {
+    const effectiveFeeRate = feeRate ?? (await provider.esplora.getFeeEstimates())['1']
+
     const originalGatheredUtxos = gatheredUtxos
 
-    if (!feeRate) {
-      feeRate = (await provider.esplora.getFeeEstimates())['1']
-    }
-
-    const alkaneUtxosLength = alkaneUtxos?.utxos.length ?? 0
     const minTxSize = minimumFee({
       taprootInputCount: 2,
       nonTaprootInputCount: 0,
       outputCount: 2,
     })
 
-    let calculatedFee = Math.max(minTxSize * feeRate!, 250)
+    let calculatedFee = Math.max(minTxSize * effectiveFeeRate, 250)
     let finalFee = fee === 0 ? calculatedFee : fee
 
     gatheredUtxos = findXAmountOfSats(
       originalGatheredUtxos.utxos,
-      Number(finalFee) + 546 * alkaneUtxosLength * 2
+      Number(finalFee) + 546 * alkaneUtxos!.utxos.length * 2
     )
 
     let psbt = new bitcoin.Psbt({ network: provider.network })
@@ -534,7 +533,7 @@ export const createSplitPsbt = async ({
         nonTaprootInputCount: 0,
         outputCount: 2,
       })
-      finalFee = txSize * feeRate! < 250 ? 250 : txSize * feeRate!
+      finalFee = txSize * effectiveFeeRate < 250 ? 250 : txSize * effectiveFeeRate
 
       if (gatheredUtxos.totalAmount < finalFee) {
         throw new OylTransactionError(Error('Insufficient Balance'))
@@ -592,7 +591,7 @@ export const createSplitPsbt = async ({
       }
     }
 
-    for (let i = 0; i < alkaneUtxosLength * 2; i++) {
+    for (let i = 0; i < alkaneUtxos!.utxos.length * 2; i++) {
       psbt.addOutput({
         address: account.taproot.address,
         value: 546,
@@ -606,7 +605,7 @@ export const createSplitPsbt = async ({
       gatheredUtxos.totalAmount +
       (alkaneUtxos?.totalAmount || 0) -
       finalFee -
-      546 * alkaneUtxosLength * 2
+      546 * alkaneUtxos!.utxos.length * 2
 
     psbt.addOutput({
       address: account[account.spendStrategy.changeAddress].address,
@@ -624,7 +623,7 @@ export const createSplitPsbt = async ({
       psbtHex: formattedPsbtTx.toHex(),
     }
   } catch (error) {
-    throw new OylTransactionError(error instanceof Error ? error : new Error(String(error)))
+    throw new OylTransactionError(error as Error)
   }
 }
 
@@ -672,7 +671,7 @@ export const actualSplitFee = async ({
   if (!provider.sandshrew.bitcoindRpc.testMemPoolAccept) {
     throw new Error('testMemPoolAccept method not available')
   }
-
+  
   const vsize = (
     await provider.sandshrew.bitcoindRpc.testMemPoolAccept([rawPsbt])
   )[0].vsize

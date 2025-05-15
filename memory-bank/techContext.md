@@ -22,6 +22,91 @@
 |------------|-----------|-------------------------------------------|
 | Yarn       | 1.22.21+  | Primary package manager                    |
 | NPM        | 10.x+     | Alternative package manager support        |
+| pnpm       | 8.15.0+   | Workspace package manager for monorepo     |
+
+### Monorepo Structure
+
+The SDK is organized as a monorepo using pnpm workspaces. This structure allows for:
+- Shared dependencies between packages
+- Independent versioning of packages
+- Simplified development workflow
+- Consistent tooling across packages
+
+#### Package Organization
+
+```
+oyl-sdk/
+├── packages/
+│   ├── core/                    # Core functionality
+│   ├── brc20/                   # BRC-20 implementation
+│   ├── runes/                   # Runes implementation
+│   ├── alkanes/                 # Alkanes implementation
+│   └── btc/                     # BTC implementation
+```
+
+#### Package Dependencies
+
+Each package can depend on other packages in the monorepo using workspace references:
+
+```json
+{
+  "dependencies": {
+    "@oyl-sdk/core": "workspace:*",
+    "@oyl-sdk/brc20": "workspace:*"
+  }
+}
+```
+
+#### External Package Installation
+
+To use packages from this monorepo in external projects:
+
+```json
+{
+  "dependencies": {
+    "@oyl-sdk/core": "github:Oyl-Wallet/oyl-sdk-mono#main:packages/core",
+    "@oyl-sdk/brc20": "github:Oyl-Wallet/oyl-sdk-mono#main:packages/brc20"
+  }
+}
+```
+
+Note:
+- Replace `main` with desired branch name
+- Use `:packages/package-name` syntax for monorepo packages
+- Run package manager install command after adding dependencies
+
+#### Development Workflow
+
+1. **Local Development**:
+   ```bash
+   # Install all dependencies
+   pnpm install
+   
+   # Build all packages
+   pnpm build
+   
+   # Run tests
+   pnpm test
+   ```
+
+2. **Package-Specific Commands**:
+   ```bash
+   # Build specific package
+   pnpm --filter @oyl-sdk/core build
+   
+   # Test specific package
+   pnpm --filter @oyl-sdk/brc20 test
+   ```
+
+3. **Adding New Packages**:
+   - Create new directory in `packages/`
+   - Initialize with `package.json`
+   - Add to workspace in root `pnpm-workspace.yaml`
+
+4. **Publishing**:
+   - Version packages independently
+   - Use `pnpm publish` in package directory
+   - Ensure all dependencies are properly listed
 
 ## Core Bitcoin Libraries
 

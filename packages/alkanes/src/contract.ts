@@ -14,6 +14,7 @@ import {
   createDeployRevealPsbt,
   deployCommit,
 } from './alkanes'
+
 export const contractDeployment = async ({
   payload,
   utxos,
@@ -70,9 +71,7 @@ export const actualDeployCommitFee = async ({
   provider: Provider
   feeRate?: number
 }) => {
-  if (!feeRate) {
-    feeRate = (await provider.esplora.getFeeEstimates())['1']
-  }
+  const effectiveFeeRate = feeRate ?? (await provider.esplora.getFeeEstimates())['1']
 
   const { psbt } = await createDeployCommitPsbt({
     payload,
@@ -84,7 +83,7 @@ export const actualDeployCommitFee = async ({
   })
 
   const { fee: estimatedFee } = await getEstimatedFee({
-    feeRate: feeRate!,
+    feeRate: effectiveFeeRate,
     psbt,
     provider,
   })
@@ -100,7 +99,7 @@ export const actualDeployCommitFee = async ({
   })
 
   const { fee: finalFee, vsize } = await getEstimatedFee({
-    feeRate: feeRate!,
+    feeRate: effectiveFeeRate,
     psbt: finalPsbt,
     provider,
   })
@@ -125,9 +124,7 @@ export const actualDeployRevealFee = async ({
   provider: Provider
   feeRate?: number
 }) => {
-  if (!feeRate) {
-    feeRate = (await provider.esplora.getFeeEstimates())['1']
-  }
+  const effectiveFeeRate = feeRate ?? (await provider.esplora.getFeeEstimates())['1']
 
   const { psbt } = await createDeployRevealPsbt({
     protostone,
@@ -136,11 +133,11 @@ export const actualDeployRevealFee = async ({
     script,
     tweakedPublicKey,
     provider,
-    feeRate: feeRate!,
+    feeRate: effectiveFeeRate,
   })
 
   const { fee: estimatedFee } = await getEstimatedFee({
-    feeRate: feeRate!,
+    feeRate: effectiveFeeRate,
     psbt,
     provider,
   })
@@ -152,12 +149,12 @@ export const actualDeployRevealFee = async ({
     script,
     tweakedPublicKey,
     provider,
-    feeRate: feeRate!,
+    feeRate: effectiveFeeRate,
     fee: estimatedFee,
   })
 
   const { fee: finalFee, vsize } = await getEstimatedFee({
-    feeRate: feeRate!,
+    feeRate: effectiveFeeRate,
     psbt: finalPsbt,
     provider,
   })
@@ -182,6 +179,8 @@ export const deployReveal = async ({
   feeRate?: number
   signer: Signer
 }) => {
+  const effectiveFeeRate = feeRate ?? (await provider.esplora.getFeeEstimates())['1']
+
   const tweakedTaprootKeyPair: bitcoin.Signer = tweakSigner(
     signer.taprootKeyPair,
     {
@@ -198,7 +197,7 @@ export const deployReveal = async ({
     commitTxId,
     script: Buffer.from(script, 'hex'),
     provider,
-    feeRate,
+    feeRate: effectiveFeeRate,
   })
 
   const { psbt: finalRevealPsbt } = await createDeployRevealPsbt({
@@ -208,7 +207,7 @@ export const deployReveal = async ({
     commitTxId,
     script: Buffer.from(script, 'hex'),
     provider,
-    feeRate: feeRate!,
+    feeRate: effectiveFeeRate,
     fee,
   })
 
