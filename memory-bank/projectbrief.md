@@ -12,7 +12,7 @@ The SDK aims to simplify Bitcoin development by abstracting complex Bitcoin oper
 
 - **Primary Language**: TypeScript
 - **Runtime Environment**: Node.js (v20+)
-- **Package Manager**: Yarn (v1.22.21+)
+- **Package Manager**: pnpm (v8.15.0+)
 
 ### Frameworks and Libraries
 
@@ -36,18 +36,18 @@ The SDK aims to simplify Bitcoin development by abstracting complex Bitcoin oper
 
 ### System Architecture
 
-The Oyl SDK is structured as a modular TypeScript library with the following key components:
+The Oyl SDK is structured as a monorepo using pnpm workspaces, with the following key components:
 
-1. **Core Bitcoin Operations**
+1. **Core Bitcoin Operations** (`@oyl-sdk/core`)
    - Account management (HD wallet generation, key derivation)
    - Transaction creation and signing
    - UTXO management
 
 2. **Protocol Extensions**
-   - BRC-20 token support
-   - Runes protocol integration
-   - Alkanes smart contract functionality
-   - Collectibles (NFT-like assets) handling
+   - BRC-20 token support (`@oyl-sdk/brc20`)
+   - Runes protocol integration (`@oyl-sdk/runes`)
+   - Alkanes smart contract functionality (`@oyl-sdk/alkanes`)
+   - Collectibles (NFT-like assets) handling (`@oyl-sdk/collectible`)
 
 3. **Provider System**
    - Abstraction layer for Bitcoin network interaction
@@ -64,68 +64,68 @@ The Oyl SDK is structured as a modular TypeScript library with the following key
 - **Builder Pattern**: Used for transaction construction
 - **Strategy Pattern**: Used for different signing approaches
 
-## Source Code Modules
+## Package Structure
 
-### Core Modules
+### Core Package (`@oyl-sdk/core`)
 
-#### Account Module (`src/account`)
+#### Account Module
 - Handles wallet generation from mnemonics
 - Supports multiple address types (Legacy, SegWit, Taproot)
 - Implements BIP32/39/44 standards for hierarchical deterministic wallets
 - Key functionality: Account creation, address derivation, key management
 
-#### Signer Module (`src/signer`)
+#### Signer Module
 - Manages transaction signing for different address types
 - Supports various signature hash types
 - Provides message signing capabilities
 - Key functionality: Transaction signing, message signing, key tweaking
 
-#### BTC Module (`src/btc`)
+#### BTC Module
 - Core Bitcoin transaction functionality
 - Fee calculation and management
 - Transaction creation and broadcasting
 - Key functionality: PSBT creation, fee estimation, transaction building
 
-#### UTXO Module (`src/utxo`)
+#### UTXO Module
 - UTXO selection and management
 - Balance calculation
 - UTXO filtering and sorting
 - Key functionality: UTXO gathering, balance checking, coin selection
 
-### Protocol Extensions
+### Protocol Extension Packages
 
-#### BRC20 Module (`src/brc20`)
+#### BRC20 Package (`@oyl-sdk/brc20`)
 - BRC-20 token transfer functionality
 - Token balance checking
 - Integration with Ordinals for token operations
 - Key functionality: Token transfers, balance queries
 
-#### Rune Module (`src/rune`)
+#### Rune Package (`@oyl-sdk/runes`)
 - Rune protocol implementation
 - Minting, sending, and managing Runes
 - Etch operations (commit/reveal pattern)
 - Key functionality: Rune minting, transfers, etching
 
-#### Alkanes Module (`src/alkanes`)
+#### Alkanes Package (`@oyl-sdk/alkanes`)
 - Smart contract functionality on Bitcoin
 - Contract deployment and execution
 - Token operations within the Alkanes ecosystem
 - Key functionality: Contract deployment, execution, token management
 
-#### Collectible Module (`src/collectible`)
+#### Collectible Package (`@oyl-sdk/collectible`)
 - NFT-like asset management
 - Transfer and ownership operations
 - Key functionality: Collectible transfers, ownership verification
 
 ### Infrastructure
 
-#### Provider Module (`src/provider`)
+#### Provider Module
 - Network communication abstraction
 - Support for multiple Bitcoin RPC endpoints
 - Transaction broadcasting and confirmation tracking
 - Key functionality: Network interaction, transaction broadcasting
 
-#### RPC Client Module (`src/rpclient`)
+#### RPC Client Module
 - Implementation of various RPC clients:
   - Sandshrew: Bitcoin Core RPC wrapper
   - Esplora: Block explorer API
@@ -133,79 +133,29 @@ The Oyl SDK is structured as a modular TypeScript library with the following key
   - Alkanes: Smart contract functionality
 - Key functionality: API communication, data retrieval, command execution
 
-#### CLI Module (`src/cli`)
-- Command-line interface for all SDK functionality
-- Interactive tools for development and testing
-- Regtest environment management
-- Key functionality: Command parsing, user interaction, operation execution
-
-### Utilities
-
-#### Shared Module (`src/shared`)
-- Common utilities and helper functions
-- Type definitions and interfaces
-- Constants and configuration
-- Key functionality: Utility functions, type definitions, shared constants
-
-#### Errors Module (`src/errors`)
-- Custom error types and error handling
-- Key functionality: Error definition, error handling
-
-## Additional Context
-
-### Testing Strategy
-- Jest testing framework for unit and integration tests
-- Test fixtures for reproducible testing scenarios
-- Regtest environment for local testing
-
-### Development Workflow
-- TypeScript compilation to JavaScript
-- Prettier for code formatting
-- Makefile for common development tasks
-
-### Deployment
-- Published as an NPM package (`@oyl/sdk`)
-- Versioned using SemVer
-- MIT licensed
-
-### Integration Notes
-- Requires Bitcoin node access (direct or via API)
-- Supports multiple network types (mainnet, testnet, regtest)
-- Provides both programmatic and CLI interfaces
-
-## File Structure Overview
+## Monorepo Structure
 
 ```
-oyl-sdk/
-├── bin/                  # Binary executables
-├── lib/                  # Compiled JavaScript output
-├── src/                  # TypeScript source code
-│   ├── account/          # Account management
-│   ├── alkanes/          # Alkanes smart contract functionality
-│   ├── brc20/            # BRC-20 token support
-│   ├── btc/              # Core Bitcoin operations
-│   ├── cli/              # Command-line interface
-│   ├── collectible/      # NFT-like asset handling
-│   ├── errors/           # Error definitions
-│   ├── network/          # Network configurations
-│   ├── provider/         # Provider abstraction
-│   ├── rpclient/         # RPC client implementations
-│   ├── rune/             # Runes protocol support
-│   ├── shared/           # Shared utilities
-│   ├── signer/           # Transaction signing
-│   ├── utxo/             # UTXO management
-│   └── index.ts          # Main entry point
-├── package.json          # Package configuration
-├── tsconfig.json         # TypeScript configuration
-├── jest.config.ts        # Jest testing configuration
-└── README.md             # Project documentation
+oyl-sdk-mono/
+├── node_modules/           # Root dependencies and workspace symlinks
+├── packages/
+│   ├── core/              # Core functionality
+│   │   ├── node_modules/  # Package-specific dependencies
+│   │   ├── dist/         # Built files
+│   │   └── src/          # Source files
+│   ├── brc20/            # BRC-20 implementation
+│   ├── runes/            # Runes implementation
+│   ├── alkanes/          # Alkanes implementation
+│   └── btc/              # BTC implementation
+├── package.json          # Root package.json
+└── pnpm-workspace.yaml   # Workspace configuration
 ```
 
 ## Usage Examples
 
 ### Programmatic Usage
 ```typescript
-import { Account, Provider, btc } from '@oyl/sdk';
+import { Account, Provider, btc } from '@oyl-sdk/core';
 
 // Initialize provider
 const provider = new Provider({
@@ -232,14 +182,27 @@ const result = await btc.createPsbt({
 });
 ```
 
-### CLI Usage
+### Package Installation
+```json
+{
+  "dependencies": {
+    "@oyl-sdk/core": "github:Oyl-Wallet/oyl-sdk-mono#main:packages/core/dist",
+    "@oyl-sdk/brc20": "github:Oyl-Wallet/oyl-sdk-mono#main:packages/brc20/dist"
+  }
+}
+```
+
+### Development Workflow
 ```bash
-# Generate a new mnemonic
-oyl account generateMnemonic
+# Install dependencies
+pnpm install
 
-# Get account information from mnemonic
-oyl account mnemonicToAccount -m "your mnemonic phrase"
+# Build all packages
+pnpm build
 
-# Send Bitcoin
-oyl btc send -a "recipient-address" -v 10000 -f 5
+# Build specific package
+pnpm --filter @oyl-sdk/core build
+
+# Run tests
+pnpm test
 ``` 

@@ -20,9 +20,8 @@
 
 | Tool       | Version   | Purpose                                    |
 |------------|-----------|-------------------------------------------|
-| Yarn       | 1.22.21+  | Primary package manager                    |
+| pnpm       | 8.15.0+   | Primary package manager for monorepo      |
 | NPM        | 10.x+     | Alternative package manager support        |
-| pnpm       | 8.15.0+   | Workspace package manager for monorepo     |
 
 ### Monorepo Structure
 
@@ -35,13 +34,19 @@ The SDK is organized as a monorepo using pnpm workspaces. This structure allows 
 #### Package Organization
 
 ```
-oyl-sdk/
+oyl-sdk-mono/
+├── node_modules/           # Root dependencies and workspace symlinks
 ├── packages/
-│   ├── core/                    # Core functionality
-│   ├── brc20/                   # BRC-20 implementation
-│   ├── runes/                   # Runes implementation
-│   ├── alkanes/                 # Alkanes implementation
-│   └── btc/                     # BTC implementation
+│   ├── core/              # Core functionality
+│   │   ├── node_modules/  # Package-specific dependencies
+│   │   ├── dist/         # Built files
+│   │   └── src/          # Source files
+│   ├── brc20/            # BRC-20 implementation
+│   ├── runes/            # Runes implementation
+│   ├── alkanes/          # Alkanes implementation
+│   └── btc/              # BTC implementation
+├── package.json          # Root package.json
+└── pnpm-workspace.yaml   # Workspace configuration
 ```
 
 #### Package Dependencies
@@ -64,15 +69,15 @@ To use packages from this monorepo in external projects:
 ```json
 {
   "dependencies": {
-    "@oyl-sdk/core": "github:Oyl-Wallet/oyl-sdk-mono#main:packages/core",
-    "@oyl-sdk/brc20": "github:Oyl-Wallet/oyl-sdk-mono#main:packages/brc20"
+    "@oyl-sdk/core": "github:Oyl-Wallet/oyl-sdk-mono#main:packages/core/dist",
+    "@oyl-sdk/brc20": "github:Oyl-Wallet/oyl-sdk-mono#main:packages/brc20/dist"
   }
 }
 ```
 
 Note:
 - Replace `main` with desired branch name
-- Use `:packages/package-name` syntax for monorepo packages
+- Use `:packages/package-name/dist` syntax to ensure only built files are installed
 - Run package manager install command after adding dependencies
 
 #### Development Workflow
