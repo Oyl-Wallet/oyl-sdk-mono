@@ -10,7 +10,8 @@ import {
   formatInputsToSign,
   getAddressType,
   OylTransactionError,
-} from '@oyl-sdk/core'
+  pushPsbt,
+} from '@oyl/sdk-core'
 
 export const createPsbt = async ({
   gatheredUtxos,
@@ -42,7 +43,7 @@ export const createPsbt = async ({
     const calculatedFee = minFee * feeRate! < 250 ? 250 : minFee * feeRate!
     let finalFee = fee ? fee : calculatedFee
 
-    let psbt = new bitcoin.Psbt({ network: provider.network })
+    let psbt = new bitcoin.Psbt({ network: provider.getNetwork() })
     const { txId, voutIndex, data } = await findCollectible({
       address: inscriptionAddress,
       provider,
@@ -176,7 +177,7 @@ export const createPsbt = async ({
     const formattedPsbtTx = await formatInputsToSign({
       _psbt: psbt,
       senderPublicKey: account.taproot.pubkey,
-      network: provider.network,
+      network: provider.getNetwork(),
     })
 
     return { psbt: formattedPsbtTx.toBase64() }
@@ -272,8 +273,9 @@ export const send = async ({
     finalize: true,
   })
 
-  const result = await provider.pushPsbt({
+  const result = await pushPsbt({
     psbtBase64: signedPsbt,
+    provider,
   })
 
   return result

@@ -6,8 +6,9 @@ import {
   tweakSigner,
   getEstimatedFee,
   AlkanesPayload,
-  FormattedUtxo
-} from '@oyl-sdk/core'
+  FormattedUtxo,
+  pushPsbt,
+} from '@oyl/sdk-core'
 import * as bitcoin from 'bitcoinjs-lib'
 import {
   createDeployCommitPsbt,
@@ -184,7 +185,7 @@ export const deployReveal = async ({
   const tweakedTaprootKeyPair: bitcoin.Signer = tweakSigner(
     signer.taprootKeyPair,
     {
-      network: provider.network,
+      network: provider.getNetwork(),
     }
   )
 
@@ -212,7 +213,7 @@ export const deployReveal = async ({
   })
 
   let finalReveal = bitcoin.Psbt.fromBase64(finalRevealPsbt, {
-    network: provider.network,
+    network: provider.getNetwork(),
   })
 
   finalReveal.signInput(0, tweakedTaprootKeyPair)
@@ -220,8 +221,9 @@ export const deployReveal = async ({
 
   const finalSignedPsbt = finalReveal.toBase64()
 
-  const revealResult = await provider.pushPsbt({
+  const revealResult = await pushPsbt({
     psbtBase64: finalSignedPsbt,
+    provider,
   })
 
   return revealResult

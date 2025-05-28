@@ -11,7 +11,7 @@ const config: Config = {
   setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
-    '^@oyl-sdk/core$': '<rootDir>/../core/dist'
+    '^@oyl/sdk-core$': '<rootDir>/../core/dist'
   },
   transformIgnorePatterns: [
     'node_modules/(?!(@oyl-sdk)/)'

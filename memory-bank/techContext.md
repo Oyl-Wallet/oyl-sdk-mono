@@ -56,8 +56,8 @@ Each package can depend on other packages in the monorepo using workspace refere
 ```json
 {
   "dependencies": {
-    "@oyl-sdk/core": "workspace:*",
-    "@oyl-sdk/brc20": "workspace:*"
+    "@oyl/sdk-core": "workspace:*",
+    "@oyl/sdk-brc20": "workspace:*"
   }
 }
 ```
@@ -69,8 +69,8 @@ To use packages from this monorepo in external projects:
 ```json
 {
   "dependencies": {
-    "@oyl-sdk/core": "github:Oyl-Wallet/oyl-sdk-mono#main:packages/core/dist",
-    "@oyl-sdk/brc20": "github:Oyl-Wallet/oyl-sdk-mono#main:packages/brc20/dist"
+    "@oyl/sdk-core": "github:Oyl-Wallet/oyl-sdk-mono#main:packages/core/dist",
+    "@oyl/sdk-brc20": "github:Oyl-Wallet/oyl-sdk-mono#main:packages/brc20/dist"
   }
 }
 ```
@@ -97,10 +97,10 @@ Note:
 2. **Package-Specific Commands**:
    ```bash
    # Build specific package
-   pnpm --filter @oyl-sdk/core build
+   pnpm --filter @oyl/sdk-core build
    
    # Test specific package
-   pnpm --filter @oyl-sdk/brc20 test
+   pnpm --filter @oyl/sdk-brc20 test
    ```
 
 3. **Adding New Packages**:

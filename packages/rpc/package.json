@@ -1,5 +1,5 @@
 {
-  "name": "@oyl-sdk/rpc-client",
+  "name": "@oyl/sdk-rpc",
   "version": "0.1.0",
   "description": "RPC client for Bitcoin, Esplora, Ord, and Alkanes services",
   "main": "dist/index.js",
@@ -12,6 +12,7 @@
     "format": "prettier --write \"src/**/*.ts\""
   },
   "dependencies": {
+    "@oyl/sdk-core": "workspace:*",
     "node-fetch": "^2.6.7",
     "alkanes": "git+https://github.com/kungfuflex/alkanes.git",
     "tslib": "2.6.2"

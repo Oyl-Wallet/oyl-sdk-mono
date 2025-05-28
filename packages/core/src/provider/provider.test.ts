@@ -14,9 +14,9 @@ describe('Provider', () => {
       networkType: 'testnet',
     })
 
-    expect(provider.network).toBe(networks.testnet)
-    expect(provider.networkType).toBe('testnet')
-    expect(provider.url).toBe('https://testnet.sandshrew.io/v1/test-project')
+    expect(provider.getNetwork()).toBe(networks.testnet)
+    expect(provider.getNetworkType()).toBe('testnet')
+    expect(provider.getUrl()).toBe('https://testnet.sandshrew.io/v1/test-project')
   })
 
   it('should initialize with custom version', () => {
@@ -28,7 +28,7 @@ describe('Provider', () => {
       version: 'v2',
     })
 
-    expect(provider.url).toBe('https://testnet.sandshrew.io/v2/test-project')
+    expect(provider.getUrl()).toBe('https://testnet.sandshrew.io/v2/test-project')
   })
 
   it('should initialize with regtest network', () => {
@@ -39,8 +39,8 @@ describe('Provider', () => {
       networkType: 'regtest',
     })
 
-    expect(provider.network).toBe(networks.regtest)
-    expect(provider.networkType).toBe('regtest')
+    expect(provider.getNetwork()).toBe(networks.regtest)
+    expect(provider.getNetworkType()).toBe('regtest')
   })
 
   it('should initialize with mainnet network', () => {
@@ -51,7 +51,7 @@ describe('Provider', () => {
       networkType: 'mainnet',
     })
 
-    expect(provider.network).toBe(networks.bitcoin)
-    expect(provider.networkType).toBe('mainnet')
+    expect(provider.getNetwork()).toBe(networks.bitcoin)
+    expect(provider.getNetworkType()).toBe('mainnet')
   })
 }) 

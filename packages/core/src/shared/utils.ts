@@ -4,8 +4,8 @@ import ecc from '@bitcoinerlab/secp256k1'
 import BigNumber from 'bignumber.js'
 import { maximumScriptBytes } from './constants'
 import { toXOnly } from 'bitcoinjs-lib/src/psbt/bip371'
-import { SandshrewBitcoinClient } from '@oyl-sdk/rpc-client'
-import { EsploraRpc } from '@oyl-sdk/rpc-client'
+import { SandshrewBitcoinClient } from '@oyl/sdk-rpc'
+import { EsploraRpc } from '@oyl/sdk-rpc'
 import { Network } from '../types/network'
 import { Provider } from '../provider/provider'
 import { FormattedUtxo } from '../types/utxo'
@@ -53,7 +53,7 @@ export async function getFee({
   feeRate: number
 }) {
   let rawPsbt = bitcoin.Psbt.fromBase64(psbt, {
-    network: provider.network,
+    network: provider.getNetwork(),
   })
 
   const signedHexPsbt = rawPsbt.extractTransaction().toHex()

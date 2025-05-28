@@ -26,10 +26,10 @@ importers:
       '@magiceden-oss/runestone-lib':
         specifier: 1.0.2
         version: 1.0.2
-      '@oyl-sdk/btc':
+      '@oyl/sdk-btc':
         specifier: workspace:*
         version: link:../btc
-      '@oyl-sdk/core':
+      '@oyl/sdk-core':
         specifier: workspace:*
         version: link:../core
       '@types/node':
@@ -37,7 +37,7 @@ importers:
         version: 20.17.12
       alkanes:
         specifier: git+https://github.com/kungfuflex/alkanes.git
-        version: https://codeload.github.com/kungfuflex/alkanes/tar.gz/37bcd31151c13549c937dc47a1a3ce3c4c78c318(typescript@4.9.5)
+        version: https://codeload.github.com/kungfuflex/alkanes/tar.gz/a42e70ec0f58fb1f97533d382318c4c2e92c2f6b(typescript@4.9.5)
       bip32:
         specifier: 4.0.0
         version: 4.0.0
@@ -72,10 +72,10 @@ importers:
 
   packages/amm:
     dependencies:
-      '@oyl-sdk/btc':
+      '@oyl/sdk-btc':
         specifier: workspace:*
         version: link:../btc
-      '@oyl-sdk/core':
+      '@oyl/sdk-core':
         specifier: workspace:*
         version: link:../core
       bip32:
@@ -115,7 +115,7 @@ importers:
 
   packages/brc20:
     dependencies:
-      '@oyl-sdk/core':
+      '@oyl/sdk-core':
         specifier: workspace:*
         version: link:../core
       bitcoinjs-lib:
@@ -149,7 +149,7 @@ importers:
 
   packages/btc:
     dependencies:
-      '@oyl-sdk/core':
+      '@oyl/sdk-core':
         specifier: workspace:*
         version: link:../core
       bip32:
@@ -189,10 +189,10 @@ importers:
 
   packages/collectible:
     dependencies:
-      '@oyl-sdk/btc':
+      '@oyl/sdk-btc':
         specifier: workspace:*
         version: link:../btc
-      '@oyl-sdk/core':
+      '@oyl/sdk-core':
         specifier: workspace:*
         version: link:../core
       bitcoinjs-lib:
@@ -235,9 +235,9 @@ importers:
       '@magiceden-oss/runestone-lib':
         specifier: 1.0.2
         version: 1.0.2
-      '@oyl-sdk/rpc-client':
+      '@oyl/sdk-rpc':
         specifier: workspace:*
-        version: link:../rpc-client
+        version: link:../rpc
       '@sadoprotocol/ordit-sdk':
         specifier: 3.0.0
         version: 3.0.0
@@ -268,6 +268,9 @@ importers:
       ecpair:
         specifier: 2.1.0
         version: 2.1.0
+      node-fetch:
+        specifier: ^2.6.7
+        version: 2.7.0
       tiny-async-pool:
         specifier: 2.1.0
         version: 2.1.0
@@ -281,6 +284,9 @@ importers:
       '@types/mocha':
         specifier: 10.0.10
         version: 10.0.10
+      '@types/node-fetch':
+        specifier: 2.6.11
+        version: 2.6.11
       '@types/tiny-async-pool':
         specifier: 2.0.3
         version: 2.0.3
@@ -289,25 +295,28 @@ importers:
         version: 12.1.0
       jest:
         specifier: 29.7.0
-        version: 29.7.0(@types/node@22.7.5)(ts-node@10.9.2(@types/node@22.7.5)(typescript@4.9.5))
+        version: 29.7.0(@types/node@18.19.87)(ts-node@10.9.2(@types/node@18.19.87)(typescript@4.9.5))
       prettier:
         specifier: 2.8.8
         version: 2.8.8
       ts-jest:
         specifier: 29.2.5
-        version: 29.2.5(@babel/core@7.27.1)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.27.1))(jest@29.7.0(@types/node@22.7.5)(ts-node@10.9.2(@types/node@22.7.5)(typescript@4.9.5)))(typescript@4.9.5)
+        version: 29.2.5(@babel/core@7.27.1)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.27.1))(jest@29.7.0(@types/node@18.19.87)(ts-node@10.9.2(@types/node@18.19.87)(typescript@4.9.5)))(typescript@4.9.5)
       ts-node:
         specifier: ^10.9.2
-        version: 10.9.2(@types/node@22.7.5)(typescript@4.9.5)
+        version: 10.9.2(@types/node@18.19.87)(typescript@4.9.5)
       typescript:
         specifier: 4.9.5
         version: 4.9.5
 
-  packages/rpc-client:
+  packages/rpc:
     dependencies:
+      '@oyl/sdk-core':
+        specifier: workspace:*
+        version: link:../core
       alkanes:
         specifier: git+https://github.com/kungfuflex/alkanes.git
-        version: https://codeload.github.com/kungfuflex/alkanes/tar.gz/37bcd31151c13549c937dc47a1a3ce3c4c78c318(typescript@4.9.5)
+        version: https://codeload.github.com/kungfuflex/alkanes/tar.gz/a42e70ec0f58fb1f97533d382318c4c2e92c2f6b(typescript@4.9.5)
       node-fetch:
         specifier: ^2.6.7
         version: 2.7.0
@@ -348,7 +357,7 @@ importers:
       '@magiceden-oss/runestone-lib':
         specifier: 1.0.2
         version: 1.0.2
-      '@oyl-sdk/core':
+      '@oyl/sdk-core':
         specifier: workspace:*
         version: link:../core
       bignumber.js:
@@ -376,28 +385,28 @@ importers:
 
   packages/sdk:
     dependencies:
-      '@oyl-sdk/alkanes':
+      '@oyl/sdk-alkanes':
         specifier: workspace:*
         version: link:../alkanes
-      '@oyl-sdk/amm':
+      '@oyl/sdk-amm':
         specifier: workspace:*
         version: link:../amm
-      '@oyl-sdk/brc20':
+      '@oyl/sdk-brc20':
         specifier: workspace:*
         version: link:../brc20
-      '@oyl-sdk/btc':
+      '@oyl/sdk-btc':
         specifier: workspace:*
         version: link:../btc
-      '@oyl-sdk/collectible':
+      '@oyl/sdk-collectible':
         specifier: workspace:*
         version: link:../collectible
-      '@oyl-sdk/core':
+      '@oyl/sdk-core':
         specifier: workspace:*
         version: link:../core
-      '@oyl-sdk/rpc-client':
+      '@oyl/sdk-rpc':
         specifier: workspace:*
-        version: link:../rpc-client
-      '@oyl-sdk/runes':
+        version: link:../rpc
+      '@oyl/sdk-runes':
         specifier: workspace:*
         version: link:../runes
       '@types/node':
@@ -886,6 +895,9 @@ packages:
   '@types/mocha@10.0.10':
     resolution: {integrity: sha512-xPyYSz1cMPnJQhl0CLMH68j3gprKZaTjG3s5Vi+fDgx+uhG9NOXwbVt52eFS8ECyXhyKcjDLCBEqBExKuiZb7Q==}
 
+  '@types/node-fetch@2.6.11':
+    resolution: {integrity: sha512-24xFj9R5+rfQJLRyM56qh+wnVSYhyXC2tkoBndtY0U+vubqNsYXGjufB2nn8Q6gt0LrARwL6UBtMCSVCwl4B1g==}
+
   '@types/node-fetch@2.6.12':
     resolution: {integrity: sha512-8nneRWKCg3rMtF69nLQJnOYUcbafYeFSjqkw3jCRLsqkWFlHaoQrr5mXmofFGOx3DKn7UfmBMyov8ySvLRVldA==}
 
@@ -998,8 +1010,8 @@ packages:
   ajv@6.12.6:
     resolution: {integrity: sha512-j3fVLgvTo527anyYyJOGTYJbG+vnnQYvE0m5mmkc1TK+nxAppkCLMIL0aZ4dblVCNoGShhm+kzE4ZUykBoMg4g==}
 
-  alkanes@https://codeload.github.com/kungfuflex/alkanes/tar.gz/37bcd31151c13549c937dc47a1a3ce3c4c78c318:
-    resolution: {tarball: https://codeload.github.com/kungfuflex/alkanes/tar.gz/37bcd31151c13549c937dc47a1a3ce3c4c78c318}
+  alkanes@https://codeload.github.com/kungfuflex/alkanes/tar.gz/a42e70ec0f58fb1f97533d382318c4c2e92c2f6b:
+    resolution: {tarball: https://codeload.github.com/kungfuflex/alkanes/tar.gz/a42e70ec0f58fb1f97533d382318c4c2e92c2f6b}
     version: 0.1.0
     hasBin: true
 
@@ -3181,6 +3193,41 @@ snapshots:
       - supports-color
       - ts-node
 
+  '@jest/core@29.7.0(ts-node@10.9.2(@types/node@18.19.87)(typescript@4.9.5))':
+    dependencies:
+      '@jest/console': 29.7.0
+      '@jest/reporters': 29.7.0
+      '@jest/test-result': 29.7.0
+      '@jest/transform': 29.7.0
+      '@jest/types': 29.6.3
+      '@types/node': 18.19.87
+      ansi-escapes: 4.3.2
+      chalk: 4.1.2
+      ci-info: 3.9.0
+      exit: 0.1.2
+      graceful-fs: 4.2.11
+      jest-changed-files: 29.7.0
+      jest-config: 29.7.0(@types/node@18.19.87)(ts-node@10.9.2(@types/node@18.19.87)(typescript@4.9.5))
+      jest-haste-map: 29.7.0
+      jest-message-util: 29.7.0
+      jest-regex-util: 29.6.3
+      jest-resolve: 29.7.0
+      jest-resolve-dependencies: 29.7.0
+      jest-runner: 29.7.0
+      jest-runtime: 29.7.0
+      jest-snapshot: 29.7.0
+      jest-util: 29.7.0
+      jest-validate: 29.7.0
+      jest-watcher: 29.7.0
+      micromatch: 4.0.8
+      pretty-format: 29.7.0
+      slash: 3.0.0
+      strip-ansi: 6.0.1
+    transitivePeerDependencies:
+      - babel-plugin-macros
+      - supports-color
+      - ts-node
+
   '@jest/core@29.7.0(ts-node@10.9.2(@types/node@20.17.12)(typescript@4.9.5))':
     dependencies:
       '@jest/console': 29.7.0
@@ -3525,6 +3572,11 @@ snapshots:
 
   '@types/mocha@10.0.10': {}
 
+  '@types/node-fetch@2.6.11':
+    dependencies:
+      '@types/node': 18.19.87
+      form-data: 4.0.2
+
   '@types/node-fetch@2.6.12':
     dependencies:
       '@types/node': 18.19.87
@@ -3664,7 +3716,7 @@ snapshots:
       json-schema-traverse: 0.4.1
       uri-js: 4.4.1
 
-  alkanes@https://codeload.github.com/kungfuflex/alkanes/tar.gz/37bcd31151c13549c937dc47a1a3ce3c4c78c318(typescript@4.9.5):
+  alkanes@https://codeload.github.com/kungfuflex/alkanes/tar.gz/a42e70ec0f58fb1f97533d382318c4c2e92c2f6b(typescript@4.9.5):
     dependencies:
       '@magiceden-oss/runestone-lib': 1.0.2
       '@protobuf-ts/protoc': 2.10.0
@@ -4094,6 +4146,21 @@ snapshots:
       exit: 0.1.2
       graceful-fs: 4.2.11
       jest-config: 29.7.0(@types/node@18.19.87)
+      jest-util: 29.7.0
+      prompts: 2.4.2
+    transitivePeerDependencies:
+      - '@types/node'
+      - babel-plugin-macros
+      - supports-color
+      - ts-node
+
+  create-jest@29.7.0(@types/node@18.19.87)(ts-node@10.9.2(@types/node@18.19.87)(typescript@4.9.5)):
+    dependencies:
+      '@jest/types': 29.6.3
+      chalk: 4.1.2
+      exit: 0.1.2
+      graceful-fs: 4.2.11
+      jest-config: 29.7.0(@types/node@18.19.87)(ts-node@10.9.2(@types/node@18.19.87)(typescript@4.9.5))
       jest-util: 29.7.0
       prompts: 2.4.2
     transitivePeerDependencies:
@@ -4854,6 +4921,25 @@ snapshots:
       - supports-color
       - ts-node
 
+  jest-cli@29.7.0(@types/node@18.19.87)(ts-node@10.9.2(@types/node@18.19.87)(typescript@4.9.5)):
+    dependencies:
+      '@jest/core': 29.7.0(ts-node@10.9.2(@types/node@18.19.87)(typescript@4.9.5))
+      '@jest/test-result': 29.7.0
+      '@jest/types': 29.6.3
+      chalk: 4.1.2
+      create-jest: 29.7.0(@types/node@18.19.87)(ts-node@10.9.2(@types/node@18.19.87)(typescript@4.9.5))
+      exit: 0.1.2
+      import-local: 3.2.0
+      jest-config: 29.7.0(@types/node@18.19.87)(ts-node@10.9.2(@types/node@18.19.87)(typescript@4.9.5))
+      jest-util: 29.7.0
+      jest-validate: 29.7.0
+      yargs: 17.7.2
+    transitivePeerDependencies:
+      - '@types/node'
+      - babel-plugin-macros
+      - supports-color
+      - ts-node
+
   jest-cli@29.7.0(@types/node@20.17.12):
     dependencies:
       '@jest/core': 29.7.0
@@ -4937,6 +5023,37 @@ snapshots:
       strip-json-comments: 3.1.1
     optionalDependencies:
       '@types/node': 18.19.87
+    transitivePeerDependencies:
+      - babel-plugin-macros
+      - supports-color
+
+  jest-config@29.7.0(@types/node@18.19.87)(ts-node@10.9.2(@types/node@18.19.87)(typescript@4.9.5)):
+    dependencies:
+      '@babel/core': 7.27.1
+      '@jest/test-sequencer': 29.7.0
+      '@jest/types': 29.6.3
+      babel-jest: 29.7.0(@babel/core@7.27.1)
+      chalk: 4.1.2
+      ci-info: 3.9.0
+      deepmerge: 4.3.1
+      glob: 7.2.3
+      graceful-fs: 4.2.11
+      jest-circus: 29.7.0
+      jest-environment-node: 29.7.0
+      jest-get-type: 29.6.3
+      jest-regex-util: 29.6.3
+      jest-resolve: 29.7.0
+      jest-runner: 29.7.0
+      jest-util: 29.7.0
+      jest-validate: 29.7.0
+      micromatch: 4.0.8
+      parse-json: 5.2.0
+      pretty-format: 29.7.0
+      slash: 3.0.0
+      strip-json-comments: 3.1.1
+    optionalDependencies:
+      '@types/node': 18.19.87
+      ts-node: 10.9.2(@types/node@18.19.87)(typescript@4.9.5)
     transitivePeerDependencies:
       - babel-plugin-macros
       - supports-color
@@ -5316,6 +5433,18 @@ snapshots:
       '@jest/types': 29.6.3
       import-local: 3.2.0
       jest-cli: 29.7.0(@types/node@18.19.87)
+    transitivePeerDependencies:
+      - '@types/node'
+      - babel-plugin-macros
+      - supports-color
+      - ts-node
+
+  jest@29.7.0(@types/node@18.19.87)(ts-node@10.9.2(@types/node@18.19.87)(typescript@4.9.5)):
+    dependencies:
+      '@jest/core': 29.7.0(ts-node@10.9.2(@types/node@18.19.87)(typescript@4.9.5))
+      '@jest/types': 29.6.3
+      import-local: 3.2.0
+      jest-cli: 29.7.0(@types/node@18.19.87)(ts-node@10.9.2(@types/node@18.19.87)(typescript@4.9.5))
     transitivePeerDependencies:
       - '@types/node'
       - babel-plugin-macros
@@ -5912,6 +6041,25 @@ snapshots:
 
   tr46@0.0.3: {}
 
+  ts-jest@29.2.5(@babel/core@7.27.1)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.27.1))(jest@29.7.0(@types/node@18.19.87)(ts-node@10.9.2(@types/node@18.19.87)(typescript@4.9.5)))(typescript@4.9.5):
+    dependencies:
+      bs-logger: 0.2.6
+      ejs: 3.1.10
+      fast-json-stable-stringify: 2.1.0
+      jest: 29.7.0(@types/node@18.19.87)(ts-node@10.9.2(@types/node@18.19.87)(typescript@4.9.5))
+      jest-util: 29.7.0
+      json5: 2.2.3
+      lodash.memoize: 4.1.2
+      make-error: 1.3.6
+      semver: 7.7.2
+      typescript: 4.9.5
+      yargs-parser: 21.1.1
+    optionalDependencies:
+      '@babel/core': 7.27.1
+      '@jest/transform': 29.7.0
+      '@jest/types': 29.6.3
+      babel-jest: 29.7.0(@babel/core@7.27.1)
+
   ts-jest@29.2.5(@babel/core@7.27.1)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.27.1))(jest@29.7.0(@types/node@20.17.12)(ts-node@10.9.2(@types/node@20.17.12)(typescript@4.9.5)))(typescript@4.9.5):
     dependencies:
       bs-logger: 0.2.6
@@ -5968,6 +6116,24 @@ snapshots:
       '@jest/transform': 29.7.0
       '@jest/types': 29.6.3
       babel-jest: 29.7.0(@babel/core@7.27.1)
+
+  ts-node@10.9.2(@types/node@18.19.87)(typescript@4.9.5):
+    dependencies:
+      '@cspotcode/source-map-support': 0.8.1
+      '@tsconfig/node10': 1.0.11
+      '@tsconfig/node12': 1.0.11
+      '@tsconfig/node14': 1.0.3
+      '@tsconfig/node16': 1.0.4
+      '@types/node': 18.19.87
+      acorn: 8.14.1
+      acorn-walk: 8.3.4
+      arg: 4.1.3
+      create-require: 1.1.1
+      diff: 4.0.2
+      make-error: 1.3.6
+      typescript: 4.9.5
+      v8-compile-cache-lib: 3.0.1
+      yn: 3.1.1
 
   ts-node@10.9.2(@types/node@20.17.12)(typescript@4.9.5):
     dependencies:

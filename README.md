@@ -6,11 +6,11 @@ This is a monorepo containing the Oyl SDK packages. The SDK provides tools for i
 
 ## Packages
 
-- `@oyl-sdk/core` - Core functionality including account management and provider interfaces
-- `@oyl-sdk/alkanes` - Alkanes protocol implementation
-- `@oyl-sdk/brc20` - BRC-20 protocol implementation
-- `@oyl-sdk/btc` - BTC implementation
-- `@oyl-sdk/runes` - Runes protocol implementation
+- `@oyl/sdk-core` - Core functionality including account management and provider interfaces
+- `@oyl/sdk-alkanes` - Alkanes protocol implementation
+- `@oyl/sdk-brc20` - BRC-20 protocol implementation
+- `@oyl/sdk-btc` - BTC implementation
+- `@oyl/sdk-runes` - Runes protocol implementation
 
 ## Getting Started
 
@@ -27,6 +27,9 @@ pnpm install
 
 # Build all packages
 pnpm build
+
+# Build a specific package
+pnpm --filter @oyl/sdk-core build
 
 # Run tests
 pnpm test
@@ -101,8 +104,8 @@ If you want to use specific packages from this monorepo in your project, you can
 ```json
 {
   "dependencies": {
-    "@oyl-sdk/core": "github:Oyl-Wallet/oyl-sdk-mono#main:packages/core",
-    "@oyl-sdk/brc20": "github:Oyl-Wallet/oyl-sdk-mono#main:packages/brc20"
+    "@oyl/sdk-core": "github:Oyl-Wallet/oyl-sdk-mono#main:packages/core",
+    "@oyl/sdk-brc20": "github:Oyl-Wallet/oyl-sdk-mono#main:packages/brc20"
   }
 }
 ```

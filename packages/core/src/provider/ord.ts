@@ -1,16 +1,11 @@
-import { OrdOutput, OrdCollectibleData } from '@oyl-sdk/core'
-import { decodeCBOR } from '@oyl-sdk/core'
+import { OrdOutput, OrdCollectibleData } from '../types'
+import { decodeCBOR } from '../shared/utils'
 
 type JsonRpcResponse = {
   jsonrpc: string
   result?: any
   error?: { message: string }
   id: number
-}
-
-export type OrdOutputRune = {
-  amount: number
-  divisibility: number
 }
 
 export class OrdRpc {

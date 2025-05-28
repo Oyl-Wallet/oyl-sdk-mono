@@ -14,8 +14,8 @@ import {
   RuneUTXO,
   Signer,
   walletInit,
-} from '@oyl-sdk/core'
-import { tweakSigner } from '@oyl-sdk/core'
+} from '@oyl/sdk-core'
+import { tweakSigner } from '@oyl/sdk-core'
 
 // Add Jest globals
 declare const jest: any
@@ -52,7 +52,7 @@ const keys: walletInit = {
 const signer: Signer = new Signer(bitcoin.networks.regtest, keys)
 const tweakedTaprootKeyPair: bitcoin.Signer = tweakSigner(
   signer.taprootKeyPair,
-  { network: provider.network }
+  { network: provider.getNetwork() }
 )
 
 const { address } = bitcoin.payments.p2wpkh({

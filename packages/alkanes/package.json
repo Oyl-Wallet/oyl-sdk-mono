@@ -1,5 +1,5 @@
 {
-  "name": "@oyl-sdk/alkanes",
+  "name": "@oyl/sdk-alkanes",
   "version": "0.0.1",
   "description": "Alkanes functionality for OYL SDK",
   "main": "dist/index.js",
@@ -13,8 +13,8 @@
   },
   "dependencies": {
     "@magiceden-oss/runestone-lib": "1.0.2",
-    "@oyl-sdk/core": "workspace:*",
-    "@oyl-sdk/btc": "workspace:*",
+    "@oyl/sdk-core": "workspace:*",
+    "@oyl/sdk-btc": "workspace:*",
     "alkanes": "git+https://github.com/kungfuflex/alkanes.git",
     "bitcoinjs-lib": "6.1.7",
     "bip32": "4.0.0",

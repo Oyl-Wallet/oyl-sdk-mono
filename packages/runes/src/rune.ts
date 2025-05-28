@@ -1,4 +1,4 @@
-import { encodeVarint, minimumFee } from '@oyl-sdk/core'
+import { encodeVarint, minimumFee } from '@oyl/sdk-core'
 import * as bitcoin from 'bitcoinjs-lib'
 import {
   findXAmountOfSats,
@@ -7,7 +7,8 @@ import {
   hexToLittleEndian,
   inscriptionSats,
   tweakSigner,
-} from '@oyl-sdk/core'
+  pushPsbt,
+} from '@oyl/sdk-core'
 import {
   Account,
   Provider,
@@ -16,12 +17,12 @@ import {
   RuneUTXO,
   getAddressType,
   Signer,
-} from '@oyl-sdk/core'
+} from '@oyl/sdk-core'
 import { toXOnly } from 'bitcoinjs-lib/src/psbt/bip371'
 import { LEAF_VERSION_TAPSCRIPT } from 'bitcoinjs-lib/src/payments/bip341'
 import { encodeRunestone, RunestoneSpec } from '@magiceden-oss/runestone-lib'
-import { OrdOutput } from '@oyl-sdk/core'
-import { OrdOutputRune } from '@oyl-sdk/core'
+import { OrdOutput } from '@oyl/sdk-core'
+import { OrdOutputRune } from '@oyl/sdk-core'
 //import { rune } from 'index'
 
 interface OrdOutputs {
@@ -95,7 +96,7 @@ export const createSendPsbt = async ({
       )
     }
 
-    let psbt = new bitcoin.Psbt({ network: provider.network })
+    let psbt = new bitcoin.Psbt({ network: provider.getNetwork() })
     const { runeUtxos, runeTotalSatoshis, divisibility } = await findRuneUtxos({
       address: inscriptionAddress,
       greatestToLeast: account.spendStrategy.utxoSortGreatestToLeast,
@@ -1249,8 +1250,9 @@ export const send = async ({
     finalize: true,
   })
 
-  const result = await provider.pushPsbt({
+  const result = await pushPsbt({
     psbtBase64: signedPsbt,
+    provider,
   })
 
   return result
@@ -1294,8 +1296,9 @@ export const mint = async ({
     finalize: true,
   })
 
-  const result = await provider.pushPsbt({
+  const result = await pushPsbt({
     psbtBase64: signedPsbt,
+    provider,
   })
 
   return result
@@ -1349,8 +1352,9 @@ export const etchCommit = async ({
     finalize: true,
   })
 
-  const result = await provider.pushPsbt({
+  const result = await pushPsbt({
     psbtBase64: signedPsbt,
+    provider,
   })
 
   return { ...result, script: script.toString('hex') }
@@ -1433,8 +1437,9 @@ export const etchReveal = async ({
     finalize: true,
   })
 
-  const revealResult = await provider.pushPsbt({
+  const revealResult = await pushPsbt({
     psbtBase64: revealSignedPsbt,
+    provider,
   })
 
   return revealResult

@@ -1,5 +1,5 @@
 {
-  "name": "@oyl-sdk/btc",
+  "name": "@oyl/sdk-btc",
   "version": "1.0.0",
   "description": "Bitcoin functionality for Oyl SDK",
   "main": "dist/index.js",
@@ -12,7 +12,7 @@
     "format": "prettier --write \"src/**/*.ts\""
   },
   "dependencies": {
-    "@oyl-sdk/core": "workspace:*",
+    "@oyl/sdk-core": "workspace:*",
     "bip32": "4.0.0",
     "bip39": "3.1.0",
     "bitcoinjs-lib": "6.1.7",

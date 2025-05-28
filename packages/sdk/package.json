@@ -1,5 +1,5 @@
 {
-  "name": "@oyl-sdk",
+  "name": "@oyl/sdk",
   "version": "1.0.0",
   "description": "Oyl SDK - Complete package with all features",
   "main": "dist/index.js",
@@ -12,14 +12,14 @@
     "lint": "eslint src --ext .ts"
   },
   "dependencies": {
-    "@oyl-sdk/core": "workspace:*",
-    "@oyl-sdk/btc": "workspace:*",
-    "@oyl-sdk/brc20": "workspace:*",
-    "@oyl-sdk/runes": "workspace:*",
-    "@oyl-sdk/amm": "workspace:*",
-    "@oyl-sdk/collectible": "workspace:*",
-    "@oyl-sdk/alkanes": "workspace:*",
-    "@oyl-sdk/rpc-client": "workspace:*",
+    "@oyl/sdk-core": "workspace:*",
+    "@oyl/sdk-btc": "workspace:*",
+    "@oyl/sdk-brc20": "workspace:*",
+    "@oyl/sdk-runes": "workspace:*",
+    "@oyl/sdk-amm": "workspace:*",
+    "@oyl/sdk-collectible": "workspace:*",
+    "@oyl/sdk-alkanes": "workspace:*",
+    "@oyl/sdk-rpc": "workspace:*",
     "tslib": "2.6.2"
   },
   "peerDependencies": {

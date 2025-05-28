@@ -21,11 +21,12 @@ import {
   OylTransactionError,
   AlkanesPayload,
   minimumFee,
-} from '@oyl-sdk/core'
+  pushPsbt,
+} from '@oyl/sdk-core'
 import { toXOnly } from 'bitcoinjs-lib/src/psbt/bip371'
 import { LEAF_VERSION_TAPSCRIPT } from 'bitcoinjs-lib/src/payments/bip341'
 import { actualDeployCommitFee } from './contract'
-import { selectSpendableUtxos, type FormattedUtxo } from '@oyl-sdk/core'
+import { selectSpendableUtxos, type FormattedUtxo } from '@oyl/sdk-core'
 
 export interface ProtostoneMessage {
   protocolTag?: bigint
@@ -118,7 +119,7 @@ export const createExecutePsbt = async ({
       }
     }
 
-    const psbt = new bitcoin.Psbt({ network: provider.network })
+    const psbt = new bitcoin.Psbt({ network: provider.getNetwork() })
 
     if (alkanesUtxos) {
       for (const utxo of alkanesUtxos) {
@@ -162,7 +163,7 @@ export const createExecutePsbt = async ({
     const formatted = await formatInputsToSign({
       _psbt: psbt,
       senderPublicKey: account.taproot.pubkey,
-      network: provider.network,
+      network: provider.getNetwork(),
     })
 
     return {
@@ -256,7 +257,7 @@ export const createDeployCommitPsbt = async ({
     const calculatedFee = minFee * feeRate! < 250 ? 250 : minFee * feeRate!
     let finalFee = fee ? fee : calculatedFee
 
-    let psbt = new bitcoin.Psbt({ network: provider.network })
+    let psbt = new bitcoin.Psbt({ network: provider.getNetwork() })
 
     const script = Buffer.from(
       p2tr_ord_reveal(toXOnly(Buffer.from(tweakedPublicKey, 'hex')), [payload])
@@ -268,7 +269,7 @@ export const createDeployCommitPsbt = async ({
       scriptTree: {
         output: script,
       },
-      network: provider.network,
+      network: provider.getNetwork(),
     })
 
     const wasmDeploySize = getVSize(Buffer.from(payload.body)) * feeRate!
@@ -366,7 +367,7 @@ export const createDeployCommitPsbt = async ({
     const formattedPsbtTx = await formatInputsToSign({
       _psbt: psbt,
       senderPublicKey: account.taproot.pubkey,
-      network: provider.network,
+      network: provider.getNetwork(),
     })
 
     return { psbt: formattedPsbtTx.toBase64(), script }
@@ -393,7 +394,7 @@ export const deployCommit = async ({
   const tweakedTaprootKeyPair: bitcoin.Signer = tweakSigner(
     signer.taprootKeyPair,
     {
-      network: provider.network,
+      network: provider.getNetwork(),
     }
   )
 
@@ -423,8 +424,9 @@ export const deployCommit = async ({
     finalize: true,
   })
 
-  const result = await provider.pushPsbt({
+  const result = await pushPsbt({
     psbtBase64: signedPsbt,
+    provider,
   })
 
   return { ...result, script: script.toString('hex') }
@@ -454,7 +456,7 @@ export const createDeployRevealPsbt = async ({
       feeRate = (await provider.esplora.getFeeEstimates())['1']
     }
 
-    const psbt: bitcoin.Psbt = new bitcoin.Psbt({ network: provider.network })
+    const psbt: bitcoin.Psbt = new bitcoin.Psbt({ network: provider.getNetwork() })
     const minFee = minimumFee({
       taprootInputCount: 1,
       nonTaprootInputCount: 0,
@@ -480,7 +482,7 @@ export const createDeployRevealPsbt = async ({
       internalPubkey: toXOnly(Buffer.from(tweakedPublicKey, 'hex')),
       scriptTree: p2pk_redeem,
       redeem: p2pk_redeem,
-      network: provider.network,
+      network: provider.getNetwork(),
     })
 
     if (!output) {
@@ -549,7 +551,7 @@ export const deployReveal = async ({
   const tweakedTaprootKeyPair: bitcoin.Signer = tweakSigner(
     signer.taprootKeyPair,
     {
-      network: provider.network,
+      network: provider.getNetwork(),
     }
   )
 
@@ -579,7 +581,7 @@ export const deployReveal = async ({
   })
 
   let finalReveal = bitcoin.Psbt.fromBase64(finalRevealPsbt, {
-    network: provider.network,
+    network: provider.getNetwork(),
   })
 
   finalReveal.signInput(0, tweakedTaprootKeyPair)
@@ -587,8 +589,9 @@ export const deployReveal = async ({
 
   const finalSignedPsbt = finalReveal.toBase64()
 
-  const revealResult = await provider.pushPsbt({
+  const revealResult = await pushPsbt({
     psbtBase64: finalSignedPsbt,
+    provider,
   })
 
   return revealResult
@@ -804,8 +807,9 @@ export const execute = async ({
     finalize: true,
   })
 
-  const pushResult = await provider.pushPsbt({
+  const pushResult = await pushPsbt({
     psbtBase64: signedPsbt,
+    provider,
   })
 
   return pushResult
@@ -835,7 +839,7 @@ export const createTransactReveal = async ({
       feeRate = (await provider.esplora.getFeeEstimates())['1']
     }
 
-    const psbt: bitcoin.Psbt = new bitcoin.Psbt({ network: provider.network })
+    const psbt: bitcoin.Psbt = new bitcoin.Psbt({ network: provider.getNetwork() })
     const minFee = minimumFee({
       taprootInputCount: 1,
       nonTaprootInputCount: 0,
@@ -861,7 +865,7 @@ export const createTransactReveal = async ({
       internalPubkey: toXOnly(Buffer.from(tweakedPublicKey, 'hex')),
       scriptTree: p2pk_redeem,
       redeem: p2pk_redeem,
-      network: provider.network,
+      network: provider.getNetwork(),
     })
 
     if (!output) {

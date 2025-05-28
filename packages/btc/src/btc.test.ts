@@ -1,10 +1,10 @@
 import * as bitcoin from 'bitcoinjs-lib'
 import { createPsbt } from './btc'
-import { Account, mnemonicToAccount, Provider, FormattedUtxo } from '@oyl-sdk/core'
+import { Account, mnemonicToAccount, Provider, FormattedUtxo } from '@oyl/sdk-core'
 
 // Mock the core module
-jest.mock('@oyl-sdk/core', () => {
-  const originalModule = jest.requireActual('@oyl-sdk/core')
+jest.mock('@oyl/sdk-core', () => {
+  const originalModule = jest.requireActual('@oyl/sdk-core')
   return {
     ...originalModule,
     getOutputValueByVOutIndex: jest.fn().mockResolvedValue({

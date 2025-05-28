@@ -38,16 +38,16 @@ The SDK aims to simplify Bitcoin development by abstracting complex Bitcoin oper
 
 The Oyl SDK is structured as a monorepo using pnpm workspaces, with the following key components:
 
-1. **Core Bitcoin Operations** (`@oyl-sdk/core`)
+1. **Core Bitcoin Operations** (`@oyl/sdk-core`)
    - Account management (HD wallet generation, key derivation)
    - Transaction creation and signing
    - UTXO management
 
 2. **Protocol Extensions**
-   - BRC-20 token support (`@oyl-sdk/brc20`)
-   - Runes protocol integration (`@oyl-sdk/runes`)
-   - Alkanes smart contract functionality (`@oyl-sdk/alkanes`)
-   - Collectibles (NFT-like assets) handling (`@oyl-sdk/collectible`)
+   - BRC-20 token support (`@oyl/sdk-brc20`)
+   - Runes protocol integration (`@oyl/sdk-runes`)
+   - Alkanes smart contract functionality (`@oyl/sdk-alkanes`)
+   - Collectibles (NFT-like assets) handling (`@oyl/sdk-collectible`)
 
 3. **Provider System**
    - Abstraction layer for Bitcoin network interaction
@@ -66,7 +66,7 @@ The Oyl SDK is structured as a monorepo using pnpm workspaces, with the followin
 
 ## Package Structure
 
-### Core Package (`@oyl-sdk/core`)
+### Core Package (`@oyl/sdk-core`)
 
 #### Account Module
 - Handles wallet generation from mnemonics
@@ -94,25 +94,25 @@ The Oyl SDK is structured as a monorepo using pnpm workspaces, with the followin
 
 ### Protocol Extension Packages
 
-#### BRC20 Package (`@oyl-sdk/brc20`)
+#### BRC20 Package (`@oyl/sdk-brc20`)
 - BRC-20 token transfer functionality
 - Token balance checking
 - Integration with Ordinals for token operations
 - Key functionality: Token transfers, balance queries
 
-#### Rune Package (`@oyl-sdk/runes`)
+#### Rune Package (`@oyl/sdk-runes`)
 - Rune protocol implementation
 - Minting, sending, and managing Runes
 - Etch operations (commit/reveal pattern)
 - Key functionality: Rune minting, transfers, etching
 
-#### Alkanes Package (`@oyl-sdk/alkanes`)
+#### Alkanes Package (`@oyl/sdk-alkanes`)
 - Smart contract functionality on Bitcoin
 - Contract deployment and execution
 - Token operations within the Alkanes ecosystem
 - Key functionality: Contract deployment, execution, token management
 
-#### Collectible Package (`@oyl-sdk/collectible`)
+#### Collectible Package (`@oyl/sdk-collectible`)
 - NFT-like asset management
 - Transfer and ownership operations
 - Key functionality: Collectible transfers, ownership verification
@@ -155,7 +155,7 @@ oyl-sdk-mono/
 
 ### Programmatic Usage
 ```typescript
-import { Account, Provider, btc } from '@oyl-sdk/core';
+import { Account, Provider, btc } from '@oyl/sdk-core';
 
 // Initialize provider
 const provider = new Provider({
@@ -186,8 +186,8 @@ const result = await btc.createPsbt({
 ```json
 {
   "dependencies": {
-    "@oyl-sdk/core": "github:Oyl-Wallet/oyl-sdk-mono#main:packages/core/dist",
-    "@oyl-sdk/brc20": "github:Oyl-Wallet/oyl-sdk-mono#main:packages/brc20/dist"
+    "@oyl/sdk-core": "github:Oyl-Wallet/oyl-sdk-mono#main:packages/core/dist",
+    "@oyl/sdk-brc20": "github:Oyl-Wallet/oyl-sdk-mono#main:packages/brc20/dist"
   }
 }
 ```
@@ -201,7 +201,7 @@ pnpm install
 pnpm build
 
 # Build specific package
-pnpm --filter @oyl-sdk/core build
+pnpm --filter @oyl/sdk-core build
 
 # Run tests
 pnpm test

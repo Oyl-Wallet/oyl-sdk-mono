@@ -1,4 +1,4 @@
-# @oyl/rpc-client
+# @oyl/rpc
 
 A flexible and modular RPC client for Bitcoin, Esplora, Ord, and Alkanes services.
 
@@ -12,7 +12,7 @@ A flexible and modular RPC client for Bitcoin, Esplora, Ord, and Alkanes service
 ## Installation
 
 ```bash
-npm install @oyl/rpc-client
+npm install @oyl/rpc
 ```
 
 ## Usage
@@ -22,7 +22,7 @@ npm install @oyl/rpc-client
 The default provider combines all implementations:
 
 ```typescript
-import { DefaultProvider } from '@oyl/rpc-client';
+import { DefaultProvider } from '@oyl/rpc';
 
 const provider = new DefaultProvider({
   bitcoin: {
@@ -55,7 +55,7 @@ import {
   IEsploraProvider, 
   IOrdProvider, 
   IAlkanesProvider 
-} from '@oyl/rpc-client';
+} from '@oyl/rpc';
 
 class CustomProvider implements IBitcoinProvider, IEsploraProvider, IOrdProvider, IAlkanesProvider {
   // Implement interface methods
@@ -68,7 +68,7 @@ Two Esplora provider implementations are available:
 
 1. **Standard Esplora Provider**:
 ```typescript
-import { StandardEsploraProvider } from '@oyl/rpc-client';
+import { StandardEsploraProvider } from '@oyl/rpc';
 
 const esplora = new StandardEsploraProvider({
   url: 'http://localhost:3000'
@@ -77,7 +77,7 @@ const esplora = new StandardEsploraProvider({
 
 2. **Sandshrew Esplora Provider**:
 ```typescript
-import { SandshrewEsploraProvider } from '@oyl/rpc-client';
+import { SandshrewEsploraProvider } from '@oyl/rpc';
 
 const esplora = new SandshrewEsploraProvider({
   url: 'http://localhost:3000'

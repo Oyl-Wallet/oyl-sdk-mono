@@ -1,11 +1,10 @@
-import { Provider } from '@oyl-sdk/core'
 import * as bitcoin from 'bitcoinjs-lib'
-import { Account, Signer } from '@oyl-sdk/core'
-import { minimumFee } from '@oyl-sdk/core'
-import { OylTransactionError } from '@oyl-sdk/core'
-import { GatheredUtxos } from '@oyl-sdk/core'
-import { getAddressType } from '@oyl-sdk/core'
-import { findXAmountOfSats } from '@oyl-sdk/core'
+import { Account, Signer, Provider, pushPsbt } from '@oyl/sdk-core'
+import { minimumFee } from '@oyl/sdk-core'
+import { OylTransactionError } from '@oyl/sdk-core'
+import { GatheredUtxos } from '@oyl/sdk-core'
+import { getAddressType } from '@oyl/sdk-core'
+import { findXAmountOfSats } from '@oyl/sdk-core'
 
 export interface FactoryConfig {
   feeTo: string
@@ -44,8 +43,9 @@ export const createFactory = async ({
       finalize: true,
     })
 
-    const result = await provider.pushPsbt({
+    const result = await pushPsbt({
       psbtBase64: signedPsbt,
+      provider,
     })
 
     return result
@@ -82,7 +82,7 @@ export const createFactoryPsbt = async ({
     const calculatedFee = minFee * feeRate! < 250 ? 250 : minFee * feeRate!
     let finalFee = fee ? fee : calculatedFee
 
-    let psbt = new bitcoin.Psbt({ network: provider.network })
+    let psbt = new bitcoin.Psbt({ network: provider.getNetwork() })
 
     const wasmDeploySize = 0 // TODO: Calculate actual size
     gatheredUtxos = findXAmountOfSats(

@@ -20,7 +20,8 @@ import {
   selectAlkanesUtxos,
   selectSpendableUtxos,
   getEstimatedFee,
-} from '@oyl-sdk/core'
+  pushPsbt,
+} from '@oyl/sdk-core'
 import { deployCommit, deployReveal } from './alkanes'
 
 
@@ -114,7 +115,7 @@ export const createSendPsbt = async ({
       )
     }
 
-    let psbt = new bitcoin.Psbt({ network: provider.network })
+    let psbt = new bitcoin.Psbt({ network: provider.getNetwork() })
 
     const alkanesUtxos = await selectAlkanesUtxos({
       utxos,
@@ -272,7 +273,7 @@ export const createSendPsbt = async ({
     const formattedPsbtTx = await formatInputsToSign({
       _psbt: psbt,
       senderPublicKey: account.taproot.pubkey,
-      network: provider.network,
+      network: provider.getNetwork(),
     })
 
     return { psbt: formattedPsbtTx.toBase64() }
@@ -328,8 +329,9 @@ export const send = async ({
     finalize: true,
   })
 
-  const result = await provider.pushPsbt({
+  const result = await pushPsbt({
     psbtBase64: signedPsbt,
+    provider,
   })
 
   return result
@@ -432,8 +434,9 @@ export const split = async ({
     finalize: true,
   })
 
-  const revealResult = await provider.pushPsbt({
+  const revealResult = await pushPsbt({
     psbtBase64: signedPsbt,
+    provider,
   })
 
   return revealResult
@@ -475,7 +478,7 @@ export const createSplitPsbt = async ({
       Number(finalFee) + 546 * alkaneUtxos!.utxos.length * 2
     )
 
-    let psbt = new bitcoin.Psbt({ network: provider.network })
+    let psbt = new bitcoin.Psbt({ network: provider.getNetwork() })
 
     if (alkaneUtxos) {
       for await (const utxo of alkaneUtxos.utxos) {
@@ -615,7 +618,7 @@ export const createSplitPsbt = async ({
     const formattedPsbtTx = await formatInputsToSign({
       _psbt: psbt,
       senderPublicKey: account.taproot.pubkey,
-      network: provider.network,
+      network: provider.getNetwork(),
     })
 
     return {

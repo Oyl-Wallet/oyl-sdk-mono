@@ -1,7 +1,7 @@
 import fetch from 'node-fetch'
 import { EsploraRpc } from './esplora'
 import * as alkanes_rpc from 'alkanes/lib/rpc'
-import { Outpoint } from '@oyl-sdk/core'
+import { Outpoint } from '@oyl/sdk-core'
 
 export class MetashrewOverride {
   public override: any

@@ -1,42 +1,6 @@
 import * as bitcoin from 'bitcoinjs-lib'
 import { Provider } from '../provider'
 
-// Fee estimation
-
-type BasePsbtParams = {
-  feeRate?: number;
-  provider: Provider;
-  fee?: number;
-};
-
-type PsbtBuilderFunction<T extends BasePsbtParams> = (params: T) => Promise<{ psbt: string; fee?: number }>;
-
-export const psbtBuilder = async <T extends BasePsbtParams>(
-  psbtBuilder: (params: T) => Promise<{ psbt: string; fee?: number }>,
-  params: T
-): Promise<{ psbt: string; fee: number; vsize: number }> => {
-  const { psbt } = await psbtBuilder(params);
-  
-  const { fee: actualFee } = await getEstimatedFee({
-    feeRate: params.feeRate ?? 2,
-    psbt,
-    provider: params.provider
-  });
-  
-  const { psbt: finalPsbt } = await psbtBuilder({
-    ...params,
-    fee: actualFee
-  });
-
-  const { fee: finalFee, vsize } = await getEstimatedFee({
-    feeRate: params.feeRate ?? 2,
-    psbt: finalPsbt,
-    provider: params.provider,
-  })
-
-  return { psbt: finalPsbt, fee: finalFee, vsize };
-};
-
 const detectInputType = (input: any) => {
   if (input.tapInternalKey || input.tapKeySig || input.tapLeafScript) {
     return "p2tr";
@@ -124,7 +88,7 @@ export const getEstimatedFee = async ({
   psbt: string
   provider: Provider
 }) => {
-  const psbtObj = bitcoin.Psbt.fromBase64(psbt, { network: provider.network });
+  const psbtObj = bitcoin.Psbt.fromBase64(psbt, { network: provider.getNetwork() });
 
   // Base overhead
   const BASE_OVERHEAD = 8; // Version (4) + Locktime (4)

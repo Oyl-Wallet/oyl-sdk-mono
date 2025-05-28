@@ -1,5 +1,5 @@
 {
-  "name": "@oyl-sdk/amm",
+  "name": "@oyl/sdk-amm",
   "version": "0.0.1",
   "description": "Automated Market Maker functionality for OYL SDK",
   "main": "dist/index.js",
@@ -12,8 +12,8 @@
     "format": "prettier --write \"src/**/*.ts\""
   },
   "dependencies": {
-    "@oyl-sdk/core": "workspace:*",
-    "@oyl-sdk/btc": "workspace:*",
+    "@oyl/sdk-core": "workspace:*",
+    "@oyl/sdk-btc": "workspace:*",
     "bitcoinjs-lib": "6.1.7",
     "bip32": "4.0.0",
     "bip39": "3.1.0"

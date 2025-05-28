@@ -9,7 +9,8 @@ import {
   formatInputsToSign,
   OylTransactionError,
   minimumFee,
-} from '@oyl-sdk/core'
+  pushPsbt,
+} from '@oyl/sdk-core'
 
 export const createPsbt = async ({
   utxos,
@@ -69,7 +70,7 @@ export const createPsbt = async ({
     }
 
     const psbt: bitcoin.Psbt = new bitcoin.Psbt({
-      network: provider.network,
+      network: provider.getNetwork(),
     })
 
     for (let i = 0; i < gatheredUtxos.utxos.length; i++) {
@@ -137,7 +138,7 @@ export const createPsbt = async ({
     const updatedPsbt = await formatInputsToSign({
       _psbt: psbt,
       senderPublicKey: account.taproot.pubkey,
-      network: provider.network,
+      network: provider.getNetwork(),
     })
 
     return { psbt: updatedPsbt.toBase64(), fee: finalFee }
@@ -194,8 +195,9 @@ export const send = async ({
     finalize: true,
   })
 
-  const result = await provider.pushPsbt({
+  const result = await pushPsbt({
     psbtBase64: signedPsbt,
+    provider,
   })
 
   return result

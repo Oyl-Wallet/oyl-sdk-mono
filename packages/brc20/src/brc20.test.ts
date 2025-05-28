@@ -1,4 +1,4 @@
-import { walletInit } from '@oyl-sdk/core'
+import { walletInit } from '@oyl/sdk-core'
 import {
   Account,
   GatheredUtxos,
@@ -8,14 +8,14 @@ import {
   getWalletPrivateKeys,
   mnemonicToAccount,
   tweakSigner,
-} from '@oyl-sdk/core'
+} from '@oyl/sdk-core'
 import * as bitcoin from 'bitcoinjs-lib'
 import { toXOnly } from 'bitcoinjs-lib/src/psbt/bip371'
 import { transferEstimate, commit, reveal, transfer, send } from './brc20'
 
 // Mock the core module
-jest.mock('@oyl-sdk/core', () => {
-  const originalModule = jest.requireActual('@oyl-sdk/core')
+jest.mock('@oyl/sdk-core', () => {
+  const originalModule = jest.requireActual('@oyl/sdk-core')
   return {
     ...originalModule,
     getOutputValueByVOutIndex: jest.fn().mockResolvedValue({
@@ -103,7 +103,7 @@ const keys: walletInit = {
 const signer: Signer = new Signer(bitcoin.networks.regtest, keys)
 const tweakedTaprootKeyPair: bitcoin.Signer = tweakSigner(
   signer.taprootKeyPair,
-  { network: provider.network }
+  { network: provider.getNetwork() }
 )
 
 const tweakedTaprootPublicKey = toXOnly(tweakedTaprootKeyPair.publicKey)
@@ -117,7 +117,7 @@ const { output } = bitcoin.payments.p2tr({
   internalPubkey: toXOnly(tweakedTaprootKeyPair.publicKey),
   scriptTree: p2pk_redeem,
   redeem: p2pk_redeem,
-  network: provider.network,
+  network: provider.getNetwork(),
 })
 
 const testFormattedUtxos: GatheredUtxos = {

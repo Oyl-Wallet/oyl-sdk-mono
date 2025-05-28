@@ -12,8 +12,9 @@ import {
   OylTransactionError,
   getAddressType,
   Signer,
-} from '@oyl-sdk/core'
-import { minimumFee } from '@oyl-sdk/core'
+  pushPsbt,
+} from '@oyl/sdk-core'
+import { minimumFee } from '@oyl/sdk-core'
 import { toXOnly } from 'bitcoinjs-lib/src/psbt/bip371'
 import { LEAF_VERSION_TAPSCRIPT } from 'bitcoinjs-lib/src/payments/bip341'
 
@@ -38,7 +39,7 @@ export const transferEstimate = async ({
     if (!feeRate) {
       feeRate = (await provider.esplora.getFeeEstimates())['1']
     }
-    const psbt: bitcoin.Psbt = new bitcoin.Psbt({ network: provider.network })
+    const psbt: bitcoin.Psbt = new bitcoin.Psbt({ network: provider.getNetwork() })
     const minFee = minimumFee({
       taprootInputCount: 1,
       nonTaprootInputCount: 0,
@@ -133,7 +134,7 @@ export const transferEstimate = async ({
     const updatedPsbt = await formatInputsToSign({
       _psbt: psbt,
       senderPublicKey: account.taproot.pubkey,
-      network: provider.network,
+      network: provider.getNetwork(),
     })
 
     return { psbt: updatedPsbt.toBase64(), fee: finalFee }
@@ -171,7 +172,7 @@ export const commit = async ({
       feeRate = (await provider.esplora.getFeeEstimates())['1']
     }
 
-    const psbt: bitcoin.Psbt = new bitcoin.Psbt({ network: provider.network })
+    const psbt: bitcoin.Psbt = new bitcoin.Psbt({ network: provider.getNetwork() })
     const commitTxSize = calculateTaprootTxSize(1, 0, 2)
     const feeForCommit =
       commitTxSize * feeRate < 250 ? 250 : commitTxSize * feeRate
@@ -191,7 +192,7 @@ export const commit = async ({
     const inscriberInfo = bitcoin.payments.p2tr({
       internalPubkey: tweakedTaprootPublicKey,
       scriptTree: { output: outputScript },
-      network: provider.network,
+      network: provider.getNetwork(),
     })
 
     if (!inscriberInfo.address) {
@@ -286,7 +287,7 @@ export const commit = async ({
     const updatedPsbt = await formatInputsToSign({
       _psbt: psbt,
       senderPublicKey: account.taproot.pubkey,
-      network: provider.network,
+      network: provider.getNetwork(),
     })
 
     return {
@@ -321,7 +322,7 @@ export const reveal = async ({
       feeRate = (await provider.esplora.getFeeEstimates())['1']
     }
 
-    const psbt: bitcoin.Psbt = new bitcoin.Psbt({ network: provider.network })
+    const psbt: bitcoin.Psbt = new bitcoin.Psbt({ network: provider.getNetwork() })
     const minFee = minimumFee({
       taprootInputCount: 1,
       nonTaprootInputCount: 0,
@@ -347,7 +348,7 @@ export const reveal = async ({
       internalPubkey: toXOnly(tweakedTaprootKeyPair.publicKey),
       scriptTree: p2pk_redeem,
       redeem: p2pk_redeem,
-      network: provider.network,
+      network: provider.getNetwork(),
     })
 
     if (!output) {
@@ -413,7 +414,7 @@ export const transfer = async ({
       feeRate = (await provider.esplora.getFeeEstimates())['1']
     }
 
-    const psbt: bitcoin.Psbt = new bitcoin.Psbt({ network: provider.network })
+    const psbt: bitcoin.Psbt = new bitcoin.Psbt({ network: provider.getNetwork() })
     const minFee = minimumFee({
       taprootInputCount: 1,
       nonTaprootInputCount: 0,
@@ -476,7 +477,7 @@ export const transfer = async ({
     const updatedPsbt = await formatInputsToSign({
       _psbt: psbt,
       senderPublicKey: account.taproot.pubkey,
-      network: provider.network,
+      network: provider.getNetwork(),
     })
 
     return { psbt: updatedPsbt.toBase64() }
@@ -507,7 +508,7 @@ export const send = async ({
   try {
     const tweakedTaprootKeyPair: bitcoin.Signer = tweakSigner(
       signer.taprootKeyPair,
-      { network: provider.network }
+      { network: provider.getNetwork() }
     )
 
     const tweakedTaprootPublicKey = toXOnly(tweakedTaprootKeyPair.publicKey)
@@ -536,8 +537,9 @@ export const send = async ({
       finalize: true,
     })
 
-    const commitResult = await provider.pushPsbt({
+    const commitResult = await pushPsbt({
       psbtBase64: signedCommitPsbt,
+      provider,
     })
 
     const { psbt: revealPsbt } = await reveal({
@@ -554,8 +556,9 @@ export const send = async ({
       finalize: true,
     })
 
-    const revealResult = await provider.pushPsbt({
+    const revealResult = await pushPsbt({
       psbtBase64: signedRevealPsbt,
+      provider,
     })
 
     const { psbt: transferPsbt } = await transfer({
@@ -572,8 +575,9 @@ export const send = async ({
       finalize: true,
     })
 
-    const transferResult = await provider.pushPsbt({
+    const transferResult = await pushPsbt({
       psbtBase64: signedTransferPsbt,
+      provider,
     })
 
     return transferResult
