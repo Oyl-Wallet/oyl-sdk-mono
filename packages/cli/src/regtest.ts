@@ -32,12 +32,12 @@ export const init = new Command('init')
     const faucetBlockCount = 100
     const addressBlockCount = 5
 
-    const provider: Provider = DEFAULT_PROVIDER[options.provider || 'regtest']
+    const provider: Provider = DEFAULT_PROVIDER[options.provider as keyof typeof DEFAULT_PROVIDER]
 
     const address = options.address || TEST_WALLET.nativeSegwit.address
 
     const currentBlockCount =
-      await provider.sandshrew.bitcoindRpc.getBlockCount()
+      await provider.sandshrew.bitcoindRpc.getBlockCount!()
 
     if (currentBlockCount > 250) {
       console.log('Blockchain already initialized')
@@ -48,23 +48,23 @@ export const init = new Command('init')
     console.log('Generating blocks...')
 
     // Generate the first block utxo payments to the faucet.
-    await provider.sandshrew.bitcoindRpc.generateToAddress(
+    await provider.sandshrew.bitcoindRpc.generateToAddress!(
       faucetBlockCount,
       REGTEST_FAUCET.nativeSegwit.address
     )
 
-    await provider.sandshrew.bitcoindRpc.generateToAddress(
+    await provider.sandshrew.bitcoindRpc.generateToAddress!(
       addressBlockCount,
       address
     )
 
     // Generate the remaining (at least 100) blocks to a random address to avoid coinbase spend issues
-    const transaction = await provider.sandshrew.bitcoindRpc.generateToAddress(
+    const transaction = await provider.sandshrew.bitcoindRpc.generateToAddress!(
       totalBlockCount - faucetBlockCount - addressBlockCount,
       RANDOM_ADDRESS
     )
     await timeout(8000)
-    const newBlockCount = await provider.sandshrew.bitcoindRpc.getBlockCount()
+    const newBlockCount = await provider.sandshrew.bitcoindRpc.getBlockCount!()
     console.log(transaction)
     console.log('Blockchain initialized')
     console.log('Block count: ', newBlockCount)
@@ -93,8 +93,8 @@ export const genBlocks = new Command('genBlocks')
   .action(async (options) => {
     const count = options.count || 1
     const address = options.address || RANDOM_ADDRESS
-    const provider: Provider = DEFAULT_PROVIDER[options.provider || 'regtest']
-    const genBlock = await provider.sandshrew.bitcoindRpc.generateToAddress(
+    const provider: Provider = DEFAULT_PROVIDER[options.provider as keyof typeof DEFAULT_PROVIDER]
+    const genBlock = await provider.sandshrew.bitcoindRpc.generateToAddress!(
       count,
       address
     )

@@ -27,13 +27,13 @@ export const alkanesProvider = new AlkanesCommand('alkanes')
     '-p, --provider <provider>',
     'provider to use to access the network.'
   )
-  .action(async (options) => {
-    const provider: Provider = DEFAULT_PROVIDER[options.provider || 'regtest']
+  .action(async (options: any) => {
+    const provider: Provider = DEFAULT_PROVIDER[options.provider as keyof typeof DEFAULT_PROVIDER]
     let isJson: object
     try {
       isJson = JSON.parse(options.parameters)
       console.log(
-        JSON.stringify(await provider.alkanes[options.method](isJson), null, 2)
+        JSON.stringify(await (provider.alkanes as any)[options.method](isJson), null, 2)
       )
     } catch (error) {
       console.log(error)
@@ -61,11 +61,11 @@ export const ordProviderCall = new Command('ord')
     'parameters for the ord method you are calling.'
   )
   .action(async (options) => {
-    const provider: Provider = DEFAULT_PROVIDER[options.provider]
+    const provider: Provider = DEFAULT_PROVIDER[options.provider as keyof typeof DEFAULT_PROVIDER]
     let isJson: object
     try {
       isJson = JSON.parse(options.parameters)
-      console.log(await provider.ord[options.method](isJson))
+      console.log(await (provider.ord as any)[options.method](isJson))
     } catch (error) {
       console.log(error)
     }
@@ -85,7 +85,7 @@ export const multiCallSandshrewProviderCall = new Command('sandShrewMulticall')
   '-c, --calls <calls>',
   'calls in this format: {method: string, params: string[]}'
 )
-.action(async (options) => {
+.action(async (options: any) => {
   type Call = { method: string; params: string[] }
 
   let isJson: Call[] = []
@@ -96,7 +96,7 @@ export const multiCallSandshrewProviderCall = new Command('sandShrewMulticall')
       return [call.method, call.params]
     })
 
-    const provider: Provider = DEFAULT_PROVIDER[options.provider]
+    const provider: Provider = DEFAULT_PROVIDER[options.provider as keyof typeof DEFAULT_PROVIDER]
     console.log(await provider.sandshrew.multiCall(multiCall))
   } catch (error) {
     console.log(error)

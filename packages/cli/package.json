@@ -4,6 +4,9 @@
   "description": "OYL SDK CLI",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "bin": {
+    "sdk-mono": "./dist/index.js"
+  },
   "scripts": {
     "build": "tsc",
     "test": "jest"

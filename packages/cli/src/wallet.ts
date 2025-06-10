@@ -27,11 +27,11 @@ export class Wallet {
   constructor(options?: WalletOptions) {
     this.mnemonic =
       options?.mnemonic || process.env.MNEMONIC || TEST_WALLET.mnemonic
-    this.networkType = options?.networkType || 'mainnet'
-    if (options.provider && typeof options.provider == 'string')
-      this.provider = DEFAULT_PROVIDER[options?.provider]
-    else if (options.provider) this.provider = options.provider
-    else this.provider = DEFAULT_PROVIDER[this.networkType]
+    this.networkType = options?.networkType || 'bitcoin'
+    if (options?.provider && typeof options.provider == 'string')
+      this.provider = DEFAULT_PROVIDER[options.provider as keyof typeof DEFAULT_PROVIDER]
+    else if (options?.provider) this.provider = options.provider
+    else this.provider = DEFAULT_PROVIDER[this.networkType as keyof typeof DEFAULT_PROVIDER]
     this.account = mnemonicToAccount({
       mnemonic: this.mnemonic,
       opts: {
