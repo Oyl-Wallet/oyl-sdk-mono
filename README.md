@@ -115,6 +115,38 @@ Note:
 - The `:packages/core` syntax is important for monorepo packages
 - Make sure to run `npm install` or your preferred package manager's install command after adding these dependencies
 
+### Setting up the CLI Globally
+
+To use the CLI globally with pnpm:
+
+1. First, ensure pnpm is set up for global installations:
+```bash
+# Set up pnpm global bin directory
+pnpm setup
+
+# Add pnpm global bin to your PATH (add this to your ~/.bashrc or ~/.zshrc)
+export PATH="$HOME/.local/share/pnpm:$PATH"
+```
+
+2. Install the CLI globally:
+```bash
+# Navigate to the CLI package
+cd packages/cli
+
+# Install globally
+pnpm install -g .
+```
+
+3. Verify the installation:
+```bash
+oyl-mono --help
+```
+
+If you encounter any issues with the global installation, you can also run the CLI directly:
+```bash
+node packages/cli/dist/index.js --help
+```
+
 ## Usage
 
 ### Prerequisites

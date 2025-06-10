@@ -5,11 +5,12 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "sdk-mono": "./dist/index.js"
+    "oyl-mono": "./bin/oyl-mono"
   },
   "scripts": {
     "build": "tsc",
-    "test": "jest"
+    "test": "jest",
+    "postinstall": "chmod +x ./bin/oyl-mono"
   },
   "dependencies": {
     "@magiceden-oss/runestone-lib": "1.0.2",
@@ -21,6 +22,7 @@
     "@oyl/sdk-core": "workspace:*",
     "@oyl/sdk-runes": "workspace:*",
     "commander": "^12.1.0",
+    "dotenv": "^16.4.5",
     "fs-extra": "^11.3.0",
     "tslib": "^2.6.2"
   },

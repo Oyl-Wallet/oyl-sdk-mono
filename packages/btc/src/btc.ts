@@ -8,6 +8,7 @@ import {
   formatInputsToSign,
   OylTransactionError,
   pushPsbt,
+  getEstimatedFee,
 } from '@oyl/sdk-core'
 
 export const BTC_DUST_AMOUNT = 295
@@ -125,6 +126,55 @@ export const createPsbt = async ({
   } catch (error) {
     throw new OylTransactionError(error instanceof Error ? error : new Error(String(error)))
   }
+}
+
+export const btcSendFee = async ({
+  utxos,
+  toAddress,
+  amount,
+  feeRate,
+  account,
+  provider,
+}: {
+  utxos: FormattedUtxo[]
+  toAddress: string
+  amount: number
+  feeRate: number
+  account: Account
+  provider: Provider
+}) => {
+  const defaultFee = 1000
+  const { psbt } = await createPsbt({
+    utxos,
+    toAddress,
+    amount,
+    fee: defaultFee,
+    account,
+    provider,
+  })
+
+  const { fee: estimatedFee } = await getEstimatedFee({
+    feeRate,
+    psbt,
+    provider,
+  })
+
+  const { psbt: finalPsbt } = await createPsbt({
+    utxos,
+    toAddress,
+    amount,
+    fee: estimatedFee,
+    account,
+    provider,
+  })
+
+  const { fee: finalFee, vsize } = await getEstimatedFee({
+    feeRate,
+    psbt: finalPsbt,
+    provider,
+  })
+
+  return { fee: finalFee, vsize }
 }
 
 export const send = async ({

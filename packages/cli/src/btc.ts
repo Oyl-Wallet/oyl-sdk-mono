@@ -2,6 +2,7 @@ import { Command } from 'commander'
 import * as btc from '@oyl/sdk-btc'
 import * as utxo from '@oyl/sdk-core'
 import { Wallet } from './wallet'
+import { pushPsbt } from '@oyl/sdk-core'
 
 export const btcSend = new Command('send')
   .requiredOption(
@@ -25,16 +26,41 @@ export const btcSend = new Command('send')
       account,
       provider,
     })
+    console.log(accountSpendableTotalUtxos)
+    const utxos = accountSpendableTotalUtxos
+    const toAddress = options.to
+    const amount = options.amount
+    const feeRate = options.feeRate
 
-    console.log(
-      await btc.send({
-        utxos: accountSpendableTotalUtxos,
-        toAddress: options.to,
-        fee: 1000,
-        account,
-        signer,
-        provider,
-        amount: options.amount,
-      })
-    )
+    const { fee: actualFee } = await btc.btcSendFee({
+      utxos,
+      toAddress,
+      amount,
+      feeRate,
+      account,
+      provider
+    })
+
+    const { psbt: finalPsbt } = await btc.createPsbt({
+      utxos,
+      toAddress,
+      amount,
+      fee: actualFee,
+      account,
+      provider,
+    })
+  
+    const { signedPsbt } = await signer.signAllInputs({
+      rawPsbt: finalPsbt,
+      finalize: true,
+    })
+
+    console.log(signedPsbt)
+  
+    const result = await pushPsbt({
+      psbtBase64: signedPsbt,
+      provider,
+    })
+
+    console.log(result)
   })

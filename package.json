@@ -1,7 +1,7 @@
 {
   "name": "@oyl/sdk-mono",
   "version": "0.1.0",
-  "private": true,
+  "private": false,
   "bin": {
     "oyl-mono": "./bin/oyl.js"
   },
@@ -12,7 +12,8 @@
     "build": "pnpm --filter @oyl/sdk-core build && pnpm --filter \"@oyl/sdk-btc\" build && pnpm --filter \"@oyl/sdk-brc20\" build && pnpm --filter \"@oyl/sdk-runes\" build && pnpm --filter \"@oyl/sdk-collectible\" build && pnpm --filter \"@oyl/sdk-amm\" build && pnpm --filter \"@oyl/sdk-alkanes\" build && pnpm --filter \"@oyl-sdk\" build && pnpm --filter \"@oyl/sdk-cli\" build",
     "test": "pnpm -r run test",
     "lint": "pnpm -r run lint",
-    "clean": "pnpm -r run clean"
+    "clean": "pnpm -r run clean",
+    "postinstall": "chmod +x ./bin/oyl.js"
   },
   "devDependencies": {
     "@types/fs-extra": "^11.0.4",
