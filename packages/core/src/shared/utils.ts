@@ -4,8 +4,8 @@ import ecc from '@bitcoinerlab/secp256k1'
 import BigNumber from 'bignumber.js'
 import { maximumScriptBytes } from './constants'
 import { toXOnly } from 'bitcoinjs-lib/src/psbt/bip371'
-import { SandshrewBitcoinClient } from '@oyl/sdk-rpc'
-import { EsploraRpc } from '@oyl/sdk-rpc'
+import { SandshrewBitcoinClient } from '..'
+import { EsploraRpc } from '..'
 import { Network } from '../types/network'
 import { Provider } from '../provider/provider'
 import { FormattedUtxo } from '../types/utxo'
@@ -29,18 +29,19 @@ function tapTweakHash(pubKey: Buffer, h: Buffer | undefined): Buffer {
   )
 }
 
-export function getNetwork(
-  value: Network | 'main'
-) {
-  if (value === 'mainnet' || value === 'main') {
-    return bitcoin.networks['bitcoin']
+export function getNetwork(value: Network | 'main') {
+  const networkMap: Record<Network, bitcoin.Network> = {
+    bitcoin: bitcoin.networks.bitcoin,
+    mainnet: bitcoin.networks.bitcoin,
+    main: bitcoin.networks.bitcoin,
+    regtest: bitcoin.networks.regtest,
+    signet: bitcoin.networks.testnet,
+    oylnet: bitcoin.networks.regtest,
+    oylnet2: bitcoin.networks.regtest,
+    alkanes: bitcoin.networks.regtest,
+    testnet: bitcoin.networks.testnet
   }
-
-  if (value === 'signet') {
-    return bitcoin.networks['testnet']
-  }
-
-  return bitcoin.networks[value]
+  return networkMap[value]
 }
 
 export async function getFee({

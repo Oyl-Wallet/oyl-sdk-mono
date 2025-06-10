@@ -5,130 +5,110 @@ import {
   Signer,
   FormattedUtxo,
   getAddressType,
-  findXAmountOfSats,
   formatInputsToSign,
   OylTransactionError,
-  minimumFee,
   pushPsbt,
 } from '@oyl/sdk-core'
+
+export const BTC_DUST_AMOUNT = 295
+
+const addUtxoInputs = async (
+  psbt: bitcoin.Psbt,
+  utxos: FormattedUtxo[],
+  account: Account,
+  provider: Provider
+) => {
+  for (let i = 0; i < utxos.length; i++) {
+    if (getAddressType(utxos[i].address) === 0) {
+      const previousTxHex: string = await provider.esplora.getTxHex(
+        utxos[i].txId
+      )
+      psbt.addInput({
+        hash: utxos[i].txId,
+        index: utxos[i].outputIndex,
+        nonWitnessUtxo: Buffer.from(previousTxHex, 'hex'),
+      })
+    }
+    if (getAddressType(utxos[i].address) === 2) {
+      const redeemScript = bitcoin.script.compile([
+        bitcoin.opcodes.OP_0,
+        bitcoin.crypto.hash160(
+          Buffer.from(account.nestedSegwit.pubkey, 'hex')
+        ),
+      ])
+
+      psbt.addInput({
+        hash: utxos[i].txId,
+        index: utxos[i].outputIndex,
+        redeemScript: redeemScript,
+        witnessUtxo: {
+          value: utxos[i].satoshis,
+          script: bitcoin.script.compile([
+            bitcoin.opcodes.OP_HASH160,
+            bitcoin.crypto.hash160(redeemScript),
+            bitcoin.opcodes.OP_EQUAL,
+          ]),
+        },
+      })
+    }
+    if (
+      getAddressType(utxos[i].address) === 1 ||
+      getAddressType(utxos[i].address) === 3
+    ) {
+      psbt.addInput({
+        hash: utxos[i].txId,
+        index: utxos[i].outputIndex,
+        witnessUtxo: {
+          value: utxos[i].satoshis,
+          script: Buffer.from(utxos[i].scriptPk, 'hex'),
+        },
+      })
+    }
+  }
+}
 
 export const createPsbt = async ({
   utxos,
   toAddress,
   amount,
-  feeRate,
+  fee,
   account,
   provider,
-  fee,
 }: {
   utxos: FormattedUtxo[]
   toAddress: string
-  feeRate: number
   amount: number
+  fee: number
   account: Account
   provider: Provider
-  fee?: number
 }) => {
   try {
     if (!utxos?.length) {
       throw new Error('No utxos provided')
     }
-    if (!feeRate) {
-      throw new Error('No feeRate provided')
-    }
-
-    const minTxSize = minimumFee({
-      taprootInputCount: 1,
-      nonTaprootInputCount: 0,
-      outputCount: 2,
-    })
-
-    let calculatedFee = Math.max(minTxSize * feeRate, 250)
-    let finalFee = fee ?? calculatedFee
-
-    let gatheredUtxos = findXAmountOfSats(
-      utxos,
-      Number(finalFee) + Number(amount)
-    )
-
-    if (!fee && gatheredUtxos.utxos.length > 1) {
-      const txSize = minimumFee({
-        taprootInputCount: gatheredUtxos.utxos.length,
-        nonTaprootInputCount: 0,
-        outputCount: 2,
-      })
-
-      finalFee = Math.max(txSize * feeRate, 250)
-      gatheredUtxos = findXAmountOfSats(
-        utxos,
-        Number(finalFee) + Number(amount)
-      )
-    }
-
-    if (gatheredUtxos.totalAmount < Number(finalFee) + Number(amount)) {
-      throw new Error('Insufficient Balance')
+    if (!fee) {
+      throw new Error('No fee provided')
     }
 
     const psbt: bitcoin.Psbt = new bitcoin.Psbt({
       network: provider.getNetwork(),
     })
 
-    for (let i = 0; i < gatheredUtxos.utxos.length; i++) {
-      if (getAddressType(gatheredUtxos.utxos[i].address) === 0) {
-        const previousTxHex: string = await provider.esplora.getTxHex(
-          gatheredUtxos.utxos[i].txId
-        )
-        psbt.addInput({
-          hash: gatheredUtxos.utxos[i].txId,
-          index: gatheredUtxos.utxos[i].outputIndex,
-          nonWitnessUtxo: Buffer.from(previousTxHex, 'hex'),
-        })
-      }
-      if (getAddressType(gatheredUtxos.utxos[i].address) === 2) {
-        const redeemScript = bitcoin.script.compile([
-          bitcoin.opcodes.OP_0,
-          bitcoin.crypto.hash160(
-            Buffer.from(account.nestedSegwit.pubkey, 'hex')
-          ),
-        ])
-
-        psbt.addInput({
-          hash: gatheredUtxos.utxos[i].txId,
-          index: gatheredUtxos.utxos[i].outputIndex,
-          redeemScript: redeemScript,
-          witnessUtxo: {
-            value: gatheredUtxos.utxos[i].satoshis,
-            script: bitcoin.script.compile([
-              bitcoin.opcodes.OP_HASH160,
-              bitcoin.crypto.hash160(redeemScript),
-              bitcoin.opcodes.OP_EQUAL,
-            ]),
-          },
-        })
-      }
-      if (
-        getAddressType(gatheredUtxos.utxos[i].address) === 1 ||
-        getAddressType(gatheredUtxos.utxos[i].address) === 3
-      ) {
-        psbt.addInput({
-          hash: gatheredUtxos.utxos[i].txId,
-          index: gatheredUtxos.utxos[i].outputIndex,
-          witnessUtxo: {
-            value: gatheredUtxos.utxos[i].satoshis,
-            script: Buffer.from(gatheredUtxos.utxos[i].scriptPk, 'hex'),
-          },
-        })
-      }
-    }
+    await addUtxoInputs(psbt, utxos, account, provider)
 
     psbt.addOutput({
       address: toAddress,
       value: Number(amount),
     })
 
-    const changeAmount = gatheredUtxos.totalAmount - (finalFee + Number(amount))
+    const totalInputAmount = utxos.reduce((sum, utxo) => sum + utxo.satoshis, 0)
+    const changeAmount = totalInputAmount - (fee + Number(amount))
 
-    if (changeAmount > 295) {
+    if (changeAmount < 0) {
+      throw new Error('Insufficient Balance')
+    }
+
+    if (changeAmount > BTC_DUST_AMOUNT) {
       psbt.addOutput({
         address: account[account.spendStrategy.changeAddress].address,
         value: changeAmount,
@@ -141,7 +121,7 @@ export const createPsbt = async ({
       network: provider.getNetwork(),
     })
 
-    return { psbt: updatedPsbt.toBase64(), fee: finalFee }
+    return { psbt: updatedPsbt.toBase64(), fee }
   } catch (error) {
     throw new OylTransactionError(error instanceof Error ? error : new Error(String(error)))
   }
@@ -151,40 +131,23 @@ export const send = async ({
   utxos,
   toAddress,
   amount,
-  feeRate,
+  fee,
   account,
   provider,
   signer,
-  fee,
 }: {
   utxos: FormattedUtxo[]
   toAddress: string
   amount: number
-  feeRate: number
+  fee: number
   account: Account
   provider: Provider
   signer: Signer
-  fee?: number
 }) => {
-  if (!fee) {
-    fee = (
-      await actualFee({
-        utxos,
-        toAddress,
-        amount,
-        feeRate,
-        account,
-        provider,
-        signer,
-      })
-    ).fee
-  }
-
   const { psbt: finalPsbt } = await createPsbt({
     utxos,
     toAddress,
     amount,
-    feeRate,
     fee,
     account,
     provider,
@@ -207,15 +170,15 @@ export const actualFee = async ({
   utxos,
   toAddress,
   amount,
-  feeRate,
+  fee,
   account,
   provider,
   signer,
 }: {
   utxos: FormattedUtxo[]
   toAddress: string
-  feeRate: number
   amount: number
+  fee: number
   account: Account
   provider: Provider
   signer: Signer
@@ -224,7 +187,7 @@ export const actualFee = async ({
     utxos,
     toAddress: toAddress,
     amount: amount,
-    feeRate: feeRate,
+    fee: fee,
     account: account,
     provider: provider,
   })
@@ -248,38 +211,5 @@ export const actualFee = async ({
     await provider.sandshrew.bitcoindRpc.testMemPoolAccept([signedHexPsbt])
   )[0].vsize
 
-  const correctFee = vsize * feeRate
-
-  const { psbt: finalPsbt } = await createPsbt({
-    utxos,
-    toAddress: toAddress,
-    amount: amount,
-    feeRate: feeRate,
-    fee: correctFee,
-    account: account,
-    provider: provider,
-  })
-
-  const { signedPsbt: signedAll } = await signer.signAllInputs({
-    rawPsbt: finalPsbt,
-    finalize: true,
-  })
-
-  let finalRawPsbt = bitcoin.Psbt.fromBase64(signedAll, {
-    network: account.network,
-  })
-
-  const finalSignedHexPsbt = finalRawPsbt.extractTransaction().toHex()
-
-  if (!provider.sandshrew.bitcoindRpc.testMemPoolAccept) {
-    throw new Error('testMemPoolAccept method not available')
-  }
-
-  const finalVsize = (
-    await provider.sandshrew.bitcoindRpc.testMemPoolAccept([finalSignedHexPsbt])
-  )[0].vsize
-
-  const finalFee = finalVsize * feeRate
-
-  return { fee: finalFee }
+  return { fee }
 }

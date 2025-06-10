@@ -1,5 +1,5 @@
 import fetch from 'node-fetch'
-import { EsploraTx, EsploraUtxo } from '@oyl/sdk-core'
+import { EsploraTx, EsploraUtxo } from '..'
 
 export class EsploraRpc {
   public esploraUrl: string

@@ -1,11 +1,16 @@
-import { OrdOutput, OrdCollectibleData } from '../types'
-import { decodeCBOR } from '../shared/utils'
+import { OrdOutput, OrdCollectibleData } from '..'
+import { decodeCBOR } from '..'
 
 type JsonRpcResponse = {
   jsonrpc: string
   result?: any
   error?: { message: string }
   id: number
+}
+
+export type OrdOutputRune = {
+  amount: number
+  divisibility: number
 }
 
 export class OrdRpc {

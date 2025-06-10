@@ -1,13 +1,15 @@
 import * as bitcoin from 'bitcoinjs-lib'
-import { SandshrewBitcoinClient } from './sandshrew'
-import { EsploraRpc } from './esplora'
-import { OrdRpc } from './ord'
+import { SandshrewBitcoinClient } from '../rpc/sandshrew'
+import { EsploraRpc } from '../rpc/esplora'
+import { OrdRpc } from '../rpc/ord'
+import { AlkanesRpc } from '../rpc/alkanes'
 import { BaseProvider, BaseProviderConfig } from './base'
 
 export class Provider extends BaseProvider {
   public sandshrew: SandshrewBitcoinClient
   public esplora: EsploraRpc
   public ord: OrdRpc
+  public alkanes: AlkanesRpc
   public network: bitcoin.networks.Network
 
   constructor({
@@ -21,6 +23,7 @@ export class Provider extends BaseProvider {
     this.sandshrew = new SandshrewBitcoinClient(this.url)
     this.esplora = new EsploraRpc(this.url)
     this.ord = new OrdRpc(this.url)
+    this.alkanes = new AlkanesRpc(this.url)
     this.network = network
   }
 

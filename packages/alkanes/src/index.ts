@@ -1,3 +1,11 @@
 export * from './alkanes'
-export * as token from './token'
-export * as contract from './contract'
+export * from './token'
+export * from './contract'
+export {
+  encipher,
+  encodeRunestoneProtostone,
+  p2tr_ord_reveal,
+  ProtoStone
+} from 'alkanes/lib/index'
+export { ProtoruneEdict } from 'alkanes/lib/protorune/protoruneedict'
+export { ProtoruneRuneId } from 'alkanes/lib/protorune/protoruneruneid'

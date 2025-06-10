@@ -1,25 +1,8 @@
 import fetch from 'node-fetch'
 import { EsploraRpc } from './esplora'
 import * as alkanes_rpc from 'alkanes/lib/rpc'
-import { Outpoint } from '@oyl/sdk-core'
-
-export class MetashrewOverride {
-  public override: any
-  constructor() {
-    this.override = null
-  }
-  set(v: any) {
-    this.override = v
-  }
-  exists() {
-    return this.override !== null
-  }
-  get() {
-    return this.override
-  }
-}
-
-export const metashrew = new MetashrewOverride()
+import { Outpoint } from '..'
+import { metashrew } from './metashrew'
 
 export const stripHexPrefix = (s: string): string =>
   s.substr(0, 2) === '0x' ? s.substr(2) : s

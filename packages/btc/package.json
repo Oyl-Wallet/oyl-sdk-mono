@@ -16,7 +16,9 @@
     "bip32": "4.0.0",
     "bip39": "3.1.0",
     "bitcoinjs-lib": "6.1.7",
-    "dotenv": "16.3.1"
+    "commander": "12.1.0",
+    "dotenv": "16.3.1",
+    "tslib": "^2.6.2"
   },
   "devDependencies": {
     "@types/jest": "29.5.14",

@@ -2,18 +2,16 @@ import {
   Account,
   Signer,
   Provider,
-  timeout, 
-  tweakSigner,
+  timeout,
   getEstimatedFee,
   AlkanesPayload,
   FormattedUtxo,
-  pushPsbt,
 } from '@oyl/sdk-core'
-import * as bitcoin from 'bitcoinjs-lib'
 import {
   createDeployCommitPsbt,
   createDeployRevealPsbt,
   deployCommit,
+  deployReveal,
 } from './alkanes'
 
 export const contractDeployment = async ({
@@ -161,70 +159,4 @@ export const actualDeployRevealFee = async ({
   })
 
   return { fee: finalFee, vsize }
-}
-
-export const deployReveal = async ({
-  protostone,
-  commitTxId,
-  script,
-  account,
-  provider,
-  feeRate,
-  signer,
-}: {
-  protostone: Buffer
-  commitTxId: string
-  script: string
-  account: Account
-  provider: Provider
-  feeRate?: number
-  signer: Signer
-}) => {
-  const effectiveFeeRate = feeRate ?? (await provider.esplora.getFeeEstimates())['1']
-
-  const tweakedTaprootKeyPair: bitcoin.Signer = tweakSigner(
-    signer.taprootKeyPair,
-    {
-      network: provider.getNetwork(),
-    }
-  )
-
-  const tweakedPublicKey = tweakedTaprootKeyPair.publicKey.toString('hex')
-
-  const { fee } = await actualDeployRevealFee({
-    protostone,
-    tweakedPublicKey,
-    receiverAddress: account.taproot.address,
-    commitTxId,
-    script: Buffer.from(script, 'hex'),
-    provider,
-    feeRate: effectiveFeeRate,
-  })
-
-  const { psbt: finalRevealPsbt } = await createDeployRevealPsbt({
-    protostone,
-    tweakedPublicKey,
-    receiverAddress: account.taproot.address,
-    commitTxId,
-    script: Buffer.from(script, 'hex'),
-    provider,
-    feeRate: effectiveFeeRate,
-    fee,
-  })
-
-  let finalReveal = bitcoin.Psbt.fromBase64(finalRevealPsbt, {
-    network: provider.getNetwork(),
-  })
-
-  finalReveal.signInput(0, tweakedTaprootKeyPair)
-  finalReveal.finalizeInput(0)
-
-  const finalSignedPsbt = finalReveal.toBase64()
-
-  const revealResult = await pushPsbt({
-    psbtBase64: finalSignedPsbt,
-    provider,
-  })
-
-  return revealResult
 }

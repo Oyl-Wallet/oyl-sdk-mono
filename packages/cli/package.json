@@ -1,0 +1,28 @@
+{
+  "name": "@oyl/sdk-cli",
+  "version": "0.1.0",
+  "description": "OYL SDK CLI",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest"
+  },
+  "dependencies": {
+    "@magiceden-oss/runestone-lib": "1.0.2",
+    "@oyl/sdk-alkanes": "workspace:*",
+    "@oyl/sdk-amm": "workspace:*",
+    "@oyl/sdk-brc20": "workspace:*",
+    "@oyl/sdk-btc": "workspace:*",
+    "@oyl/sdk-collectible": "workspace:*",
+    "@oyl/sdk-core": "workspace:*",
+    "@oyl/sdk-runes": "workspace:*",
+    "commander": "^12.1.0",
+    "fs-extra": "^11.3.0",
+    "tslib": "^2.6.2"
+  },
+  "devDependencies": {
+    "@types/fs-extra": "^11.0.4",
+    "typescript": "^5.0.0"
+  }
+} 

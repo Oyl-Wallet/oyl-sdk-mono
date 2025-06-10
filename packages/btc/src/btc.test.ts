@@ -95,8 +95,8 @@ describe('btc sendTx', () => {
     const result = await createPsbt({
       utxos: testFormattedUtxos,
       toAddress: address!,
-      amount: 3000,
-      feeRate: 10,
+      amount: 100000,
+      fee: 10,
       account: account,
       provider: provider,
     })

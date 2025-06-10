@@ -19,7 +19,6 @@
     "@oyl/sdk-amm": "workspace:*",
     "@oyl/sdk-collectible": "workspace:*",
     "@oyl/sdk-alkanes": "workspace:*",
-    "@oyl/sdk-rpc": "workspace:*",
     "tslib": "2.6.2"
   },
   "peerDependencies": {

@@ -1,5 +1,5 @@
 import fetch from 'node-fetch'
-import { IRpcMethods } from '@oyl/sdk-core'
+import { IRpcMethods } from '..'
 
 export class SandshrewBitcoinClient {
   public apiUrl: string

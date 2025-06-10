@@ -2,19 +2,26 @@
   "name": "@oyl/sdk-mono",
   "version": "0.1.0",
   "private": true,
+  "bin": {
+    "oyl-mono": "./bin/oyl.js"
+  },
   "workspaces": [
     "packages/*"
   ],
   "scripts": {
-    "build": "pnpm --filter @oyl/sdk-core build && pnpm --filter \"@oyl/sdk-rpc\" build && pnpm --filter \"@oyl/sdk-btc\" build && pnpm --filter \"@oyl/sdk-brc20\" build && pnpm --filter \"@oyl/sdk-runes\" build && pnpm --filter \"@oyl/sdk-collectible\" build && pnpm --filter \"@oyl/sdk-amm\" build && pnpm --filter \"@oyl/sdk-alkanes\" build && pnpm --filter \"@oyl-sdk\" build",
+    "build": "pnpm --filter @oyl/sdk-core build && pnpm --filter \"@oyl/sdk-btc\" build && pnpm --filter \"@oyl/sdk-brc20\" build && pnpm --filter \"@oyl/sdk-runes\" build && pnpm --filter \"@oyl/sdk-collectible\" build && pnpm --filter \"@oyl/sdk-amm\" build && pnpm --filter \"@oyl/sdk-alkanes\" build && pnpm --filter \"@oyl-sdk\" build",
+    "build:cli": "tsc -p cli/tsconfig.json",
     "test": "pnpm -r run test",
     "lint": "pnpm -r run lint",
     "clean": "pnpm -r run clean"
   },
   "devDependencies": {
+    "@types/fs-extra": "^11.0.4",
     "@types/jest": "^29.0.0",
     "@types/node": "^18.15.11",
-    "typescript": "^5.0.4",
-    "jest": "^29.0.0"
+    "commander": "12.1.0",
+    "fs-extra": "^11.3.0",
+    "jest": "^29.0.0",
+    "typescript": "^5.0.4"
   }
 }
