@@ -1,3 +1,8 @@
+export type InscriptionOutpoint = {
+  txid: string
+  vout: number
+}
+
 export type OrdOutputRune = {
   amount: number
   divisibility: number

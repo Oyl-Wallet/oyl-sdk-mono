@@ -104,3 +104,49 @@ export const genericUtxoCommand = new Command('generic')
 
     console.log(await method(args))
   })
+
+export const getSpendableUtxoSetCommand = new Command('getSpendableUtxoSet')
+  .description('Returns a set of spendable UTXOs for a given address and amount')
+  .requiredOption(
+    '-p, --provider <provider>',
+    'Network provider type (regtest, bitcoin)'
+  )
+  .requiredOption(
+    '-a, --address <address>',
+    'Address to get spendable UTXOs for'
+  )
+  .requiredOption(
+    '-m, --amount <amount>',
+    'Amount in satoshis needed'
+  )
+  .option(
+    '-f, --fee <fee>',
+    'Estimated fee in satoshis'
+  )
+  .option(
+    '-t, --threshold <threshold>',
+    'Minimum satoshi threshold for UTXOs (default: 1000)',
+    '1000'
+  )
+  .option(
+    '-s, --sort <sort>',
+    'Sort UTXOs by amount (greatest/least)',
+    'greatest'
+  )
+  /* @dev example call
+    oyl utxo getSpendableUtxoSet -p regtest -a bcrt1q54zh4xfz2jkqah8nqvp2ltl9mvrmf6s69h6au0 -m 10000 -f 546 -t 546 -s greatest
+  */
+  .action(async (options) => {
+    const wallet: Wallet = new Wallet({ networkType: options.provider })
+
+    console.log(
+      await utxo.getSpendableUtxoSet({
+        address: options.address,
+        amount: parseInt(options.amount),
+        estimatedFee: parseInt(options.fee),
+        satThreshold: parseInt(options.threshold),
+        sortUtxosGreatestToLeast: options.sort === 'greatest',
+        provider: wallet.provider,
+      })
+    )
+  })

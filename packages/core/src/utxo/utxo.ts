@@ -21,6 +21,8 @@ import {
   AccountUtxoPortfolio,
   GatheredUtxos,
 } from '../types/utxo'
+import { minimumFee } from '../shared'
+import { UTXO_ASSET_SAT_THRESHOLD } from '../shared/constants'
 
 export const accountBalance = async ({
   account,
@@ -507,4 +509,131 @@ export const selectAlkanesUtxos = ({
   }
 
   return { utxos: alkanesUtxos, totalAmount, totalBalance }
+}
+
+export const filterUtxoMetaprotocol = async ({
+  utxo,
+  address,
+  provider
+}: {
+  utxo: EsploraUtxo
+  address: string
+  provider: Provider
+}): Promise<{ formattedUtxo: FormattedUtxo, isValid: boolean }> => {
+
+  const txIdVout = `${utxo.txid}:${utxo.vout}`
+
+  const multiCall = await provider.sandshrew.multiCall([
+    ['btc_getblockcount', []],
+    ['ord_output', [txIdVout]],
+    ['esplora_tx', [utxo.txid]],
+    ['alkanes_protorunesbyaddress',
+      [
+        {
+          address,
+          protocolTag: '1',
+        },
+      ],
+    ],
+  ])
+
+  const blockCount = multiCall[0].result
+  const txOutput = multiCall[1].result as OrdOutput
+  const txDetails = multiCall[2].result
+  const alkanesByAddress = multiCall[3].result as AlkanesByAddressResponse
+
+  alkanesByAddress.outpoints.forEach((alkane) => {
+    alkane.outpoint.txid = toTxId(alkane.outpoint.txid)
+  })
+  
+  const alkanesOutpoints = alkanesByAddress.outpoints.filter(
+    ({ outpoint }) =>
+      outpoint.txid === utxo.txid && outpoint.vout === utxo.vout
+  )
+
+  const hasInscriptions = txOutput.inscriptions.length > 0
+  const hasRunes = Object.keys(txOutput.runes).length > 0
+  const hasAlkanes = alkanesOutpoints.length > 0
+  const confirmations = blockCount - (utxo.status?.block_height ?? 0)
+  const indexed = txOutput.indexed
+  const inscriptions = txOutput.inscriptions
+  const runes = Array.isArray(txOutput.runes) ? {} : txOutput.runes
+  const alkanes = mapAlkanesById(alkanesOutpoints)
+  const scriptPk = txDetails.vout[utxo.vout].scriptpubkey
+
+  const formattedUtxo = {
+    txId: utxo.txid,
+    outputIndex: utxo.vout,
+    satoshis: utxo.value,
+    address,
+    inscriptions,
+    runes,
+    alkanes,
+    confirmations,
+    indexed,
+    scriptPk,
+  }
+
+  const isValid = !hasInscriptions && !hasRunes && !hasAlkanes
+
+  return { formattedUtxo, isValid }
+}
+
+export const getSpendableUtxoSet = async ({
+  address,
+  amount,
+  estimatedFee,
+  satThreshold = UTXO_ASSET_SAT_THRESHOLD,
+  sortUtxosGreatestToLeast = true,
+  provider,
+}: {
+  address: string
+  amount: number
+  estimatedFee?: number
+  satThreshold?: number
+  sortUtxosGreatestToLeast?: boolean
+  provider: Provider
+}) => {
+  const addressUtxos = await provider.esplora.getAddressUtxo(address)
+
+  const fee = estimatedFee ?? minimumFee({
+    taprootInputCount: 2,
+    nonTaprootInputCount: 0,
+    outputCount: 3,
+  })
+
+  // confirm sum of utxos is greater than amount
+  const totalSatoshis = addressUtxos.reduce((sum, u) => sum + u.value, 0)
+  if (totalSatoshis < amount + fee) {
+    throw new OylTransactionError(new Error('Insufficient balance of utxos to cover spend and minimum fee.'))
+  }
+
+  // sort addressUtxos by satoshis according to spendStrategy
+  const sortedUtxos = addressUtxos.sort((a, b) =>
+    sortUtxosGreatestToLeast ? b.value - a.value : a.value - b.value
+  )
+  // filter out utxos that are not indexed
+  const indexedUtxos = sortedUtxos.filter((u) => u.status.confirmed)
+
+  // filter out utxos that are not above the satThreshold
+  const spendableUtxos = indexedUtxos.filter((u) => u.value > satThreshold)
+
+  // iterate through spendableUtxos and sum the satoshis until the amount is reached
+  let totalAmount = 0
+  const selectedUtxos: FormattedUtxo[] = []
+  for (const u of spendableUtxos) {
+    const { formattedUtxo, isValid } = await filterUtxoMetaprotocol({
+      utxo: u,
+      address,
+      provider,
+    })
+    if (isValid) {
+      totalAmount += formattedUtxo.satoshis
+      selectedUtxos.push(formattedUtxo)
+    }
+    if (totalAmount >= amount) {
+      break
+    }
+  }
+  return selectedUtxos
 }
