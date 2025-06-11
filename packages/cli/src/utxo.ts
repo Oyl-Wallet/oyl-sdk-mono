@@ -62,3 +62,45 @@ export const addressUtxosToSpend = new Command('addressUtxos')
       provider: wallet.provider,
     })
   })
+
+export const genericUtxoCommand = new Command('generic')
+  .description('Generic command to call any utxo method')
+  .requiredOption(
+    '-p, --provider <provider>',
+    'Network provider type (regtest, bitcoin)'
+  )
+  .requiredOption(
+    '-m, --method <method>',
+    'Method name to call (e.g. accountBalance, addressUtxos, etc.)'
+  )
+  .requiredOption(
+    '-a, --args <args>',
+    'JSON string containing method arguments'
+  )
+  /* @dev example calls:
+    oyl utxo generic -p regtest -m accountBalance -a '{"account": {...}}'
+    oyl utxo generic -p regtest -m addressUtxos -a '{"address": "bc1..."}'
+  */
+  .action(async (options) => {
+    const wallet: Wallet = new Wallet({ networkType: options.provider })
+    const args = JSON.parse(options.args)
+
+    // Add provider to args if not present
+    if (!args.provider) {
+      args.provider = wallet.provider
+    }
+
+    // Add account to args if not present and method requires it
+    if (!args.account && ['accountBalance', 'accountUtxos'].includes(options.method)) {
+      args.account = wallet.account
+    }
+
+    const methodName = options.method as keyof typeof utxo
+    const method = utxo[methodName] as Function
+    
+    if (typeof method !== 'function') {
+      throw new Error(`Method ${options.method} is not a function`)
+    }
+
+    console.log(await method(args))
+  })

@@ -17,7 +17,6 @@ import { ProtoruneEdict } from '@oyl/sdk-alkanes'
 import { ProtoruneRuneId } from '@oyl/sdk-alkanes'
 import { u128 } from '@magiceden-oss/runestone-lib/dist/src/integer'
 import { packUTF8 } from '@oyl/sdk-core'
-import { createPool } from '@oyl/sdk-amm'
 /* @dev example call
   oyl alkane trace -params '{"txid":"e6561c7a8f80560c30a113c418bb56bde65694ac2b309a68549f35fdf2e785cb","vout":0}'
 

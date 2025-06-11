@@ -1,178 +1,478 @@
-import { Provider } from '@oyl/sdk-core'
-import * as bitcoin from 'bitcoinjs-lib'
-import { Account, Signer } from '@oyl/sdk-core'
-import { minimumFee } from '@oyl/sdk-core'
-import { OylTransactionError } from '@oyl/sdk-core'
-import { GatheredUtxos } from '@oyl/sdk-core'
-import { getAddressType } from '@oyl/sdk-core'
-import { findXAmountOfSats } from '@oyl/sdk-core'
-import { pushPsbt } from '@oyl/sdk-core'
+import { encipher } from '@oyl/sdk-alkanes'
+import { encodeRunestoneProtostone, executePsbt } from '@oyl/sdk-alkanes'
+import { ProtoStone } from '@oyl/sdk-alkanes'
+import { Account, OylTransactionError, Provider, Signer, pushPsbt } from '@oyl/sdk-core'
+import { AlkaneId } from '@oyl/sdk-alkanes'
+import { u128, u32 } from '@magiceden-oss/runestone-lib/dist/src/integer'
+import { ProtoruneEdict } from '@oyl/sdk-alkanes'
+import { ProtoruneRuneId } from '@oyl/sdk-alkanes'
+import { splitAlkaneUtxos } from './factory'
+import {
+  PoolDetailsResult,
+  RemoveLiquidityPreviewResult,
+  PoolOpcodes,
+  estimateRemoveLiquidityAmounts,
+} from './utils'
+import { FormattedUtxo, selectAlkanesUtxos } from '@oyl/sdk-core'
 
-export interface PoolConfig {
-  tokenA: string
-  tokenB: string
-  fee: number
-  tickSpacing: number
+export type SwapSimulationResult = {
+  amountOut: bigint
 }
 
-export const createPool = async ({
-  config,
-  gatheredUtxos,
+export class AlkanesAMMPoolDecoder {
+  decodeSwap(data: string): SwapSimulationResult | undefined {
+    if (data === '0x') return undefined
+    // Convert hex to BigInt (little-endian)
+    const bytes = Buffer.from(data.slice(2), 'hex')
+    const reversed = Buffer.from([...bytes].reverse())
+    return {
+      amountOut: BigInt('0x' + reversed.toString('hex')),
+    }
+  }
+
+  decodePoolDetails(data: string): PoolDetailsResult | undefined {
+    if (data === '0x') return undefined
+    const bytes = Buffer.from(data.slice(2), 'hex')
+
+    const token0: AlkaneId = {
+      block: bytes.readBigUInt64LE(0).toString(),
+      tx: bytes.readBigUInt64LE(16).toString(),
+    }
+    const token1: AlkaneId = {
+      block: bytes.readBigUInt64LE(32).toString(),
+      tx: bytes.readBigUInt64LE(48).toString(),
+    }
+
+    const token0Amount = bytes.readBigUInt64LE(64).toString()
+    const token1Amount = bytes.readBigUInt64LE(80).toString()
+    const tokenSupply = bytes.readBigUInt64LE(96).toString()
+    const poolName = Buffer.from(bytes.subarray(116)).toString('utf8')
+
+    return { token0, token1, token0Amount, token1Amount, tokenSupply, poolName }
+  }
+
+  decodeName(data: string): string | undefined {
+    if (data === '0x') return undefined
+    const bytes = Buffer.from(data.slice(2), 'hex')
+    return bytes.toString('utf8')
+  }
+
+  static decodeSimulation(result: any, opcode: number) {
+    const decoder = new AlkanesAMMPoolDecoder()
+    let decoded: any
+    switch (opcode) {
+      case PoolOpcodes.INIT_POOL:
+      case PoolOpcodes.ADD_LIQUIDITY:
+      case PoolOpcodes.REMOVE_LIQUIDITY:
+        throw new Error(
+          'Opcode not supported in simulation mode; see previewRemoveLiquidity'
+        )
+      case PoolOpcodes.SIMULATE_SWAP:
+        decoded = decoder.decodeSwap(result.execution.data)
+        break
+      case PoolOpcodes.NAME:
+        decoded = decoder.decodeName(result.execution.data)
+        break
+      case PoolOpcodes.POOL_DETAILS:
+        decoded = decoder.decodePoolDetails(result.execution.data)
+        break
+      default:
+        decoded = undefined
+    }
+
+    if (result.status !== 0 || result.execution.error) {
+      throw new Error(result.execution.error || 'Unknown error')
+    }
+
+    return decoded
+  }
+}
+
+export const addLiquidityPsbt = async ({
+  calldata,
+  token0,
+  token0Amount,
+  token1,
+  token1Amount,
+  utxos,
+  feeRate,
   account,
   provider,
-  feeRate,
-  signer,
 }: {
-  config: PoolConfig
-  gatheredUtxos: GatheredUtxos
+  calldata: bigint[]
+  token0: AlkaneId
+  token0Amount: bigint
+  token1: AlkaneId
+  token1Amount: bigint
+  utxos: FormattedUtxo[]
+  feeRate: number
   account: Account
   provider: Provider
-  feeRate?: number
+}) => {
+  if (token0Amount <= 0n || token1Amount <= 0n) {
+    throw new OylTransactionError(Error('Cannot process zero tokens'))
+  }
+
+  const tokens = [
+    { alkaneId: token0, amount: token0Amount },
+    { alkaneId: token1, amount: token1Amount },
+  ]
+
+  const { edicts, utxos: alkanesUtxos } = await splitAlkaneUtxos(tokens, utxos)
+
+  const protostone: Buffer = encodeRunestoneProtostone({
+    protostones: [
+      ProtoStone.message({
+        edicts,
+        protocolTag: 1n,
+        pointer: 0,
+        refundPointer: 0,
+        calldata: encipher([]),
+      }),
+      ProtoStone.message({
+        protocolTag: 1n,
+        pointer: 0,
+        refundPointer: 0,
+        calldata: encipher(calldata),
+      }),
+    ],
+  }).encodedRunestone
+
+  const { psbt, fee } = await executePsbt({
+    utxos,
+    alkanesUtxos,
+    protostone,
+    feeRate,
+    account,
+    provider,
+  })
+
+  return { psbt, fee }
+}
+
+export const addLiquidity = async ({
+  calldata,
+  token0,
+  token0Amount,
+  token1,
+  token1Amount,
+  utxos,
+  feeRate,
+  account,
+  signer,
+  provider,
+}: {
+  calldata: bigint[]
+  token0: AlkaneId
+  token0Amount: bigint
+  token1: AlkaneId
+  token1Amount: bigint
+  utxos: FormattedUtxo[]
+  feeRate: number
+  account: Account
+  provider: Provider
   signer: Signer
 }) => {
-  try {
-    if (!feeRate) {
-      feeRate = (await provider.esplora.getFeeEstimates())['1']
-    }
+  const { psbt } = await addLiquidityPsbt({
+    calldata,
+    token0,
+    token0Amount,
+    token1,
+    token1Amount,
+    utxos,
+    feeRate,
+    account,
+    provider,
+  })
 
-    const { psbt } = await createPoolPsbt({
-      gatheredUtxos,
-      account,
-      provider,
-      feeRate,
-    })
+  const { signedPsbt } = await signer.signAllInputs({
+    rawPsbt: psbt,
+    finalize: true,
+  })
 
-    const { signedPsbt } = await signer.signAllInputs({
-      rawPsbt: psbt,
-      finalize: true,
-    })
+  const pushResult = await pushPsbt({
+    psbtBase64: signedPsbt,
+    provider,
+  })
 
-    const result = await pushPsbt({
-      psbtBase64: signedPsbt,
-      provider,
-    })
-
-    return result
-  } catch (error) {
-    throw new OylTransactionError(Error(String(error)))
-  }
+  return pushResult
 }
 
-export const createPoolPsbt = async ({
-  gatheredUtxos,
+/**
+ * Estimates the tokens that would be received when removing liquidity from a pool
+ * @param token The LP token ID
+ * @param tokenAmount The amount of LP tokens to remove
+ * @param provider The provider instance
+ * @returns A promise that resolves to the preview result containing token amounts
+ */
+export const previewRemoveLiquidity = async ({
+  token,
+  tokenAmount,
+  provider,
+}: {
+  token: AlkaneId
+  tokenAmount: bigint
+  provider: Provider
+}): Promise<RemoveLiquidityPreviewResult> => {
+  const poolDetailsRequest = {
+    target: token,
+    inputs: [PoolOpcodes.POOL_DETAILS.toString()],
+  }
+
+  const detailsResult = await provider.alkanes.simulate(poolDetailsRequest)
+  const decoder = new AlkanesAMMPoolDecoder()
+  const poolDetails = decoder.decodePoolDetails(detailsResult.execution.data)
+
+  if (!poolDetails) {
+    throw new Error('Failed to get pool details')
+  }
+
+  return estimateRemoveLiquidityAmounts(poolDetails, tokenAmount)
+}
+
+export const removeLiquidityPsbt = async ({
+  calldata,
+  token,
+  tokenAmount,
+  utxos,
+  feeRate,
   account,
   provider,
-  feeRate,
-  fee = 0,
 }: {
-  gatheredUtxos: GatheredUtxos
+  calldata: bigint[]
+  token: AlkaneId
+  tokenAmount: bigint
+  utxos: FormattedUtxo[]
+  feeRate: number
   account: Account
   provider: Provider
-  feeRate?: number
-  fee?: number
 }) => {
-  try {
-    const originalGatheredUtxos = gatheredUtxos
-
-    const minFee = minimumFee({
-      taprootInputCount: 2,
-      nonTaprootInputCount: 0,
-      outputCount: 2,
-    })
-    const calculatedFee = minFee * feeRate! < 250 ? 250 : minFee * feeRate!
-    let finalFee = fee ? fee : calculatedFee
-
-    let psbt = new bitcoin.Psbt({ network: provider.getNetwork() })
-
-    const wasmDeploySize = 0 // TODO: Calculate actual size
-    gatheredUtxos = findXAmountOfSats(
-      originalGatheredUtxos.utxos,
-      wasmDeploySize + finalFee * 2
-    )
-
-    if (!fee && gatheredUtxos.utxos.length > 1) {
-      const txSize = minimumFee({
-        taprootInputCount: gatheredUtxos.utxos.length,
-        nonTaprootInputCount: 0,
-        outputCount: 2,
-      })
-      finalFee = txSize * feeRate! < 250 ? 250 : txSize * feeRate!
-
-      if (gatheredUtxos.totalAmount < finalFee) {
-        gatheredUtxos = findXAmountOfSats(
-          originalGatheredUtxos.utxos,
-          wasmDeploySize + finalFee * 2
-        )
-      }
-    }
-
-    for (let i = 0; i < gatheredUtxos.utxos.length; i++) {
-      if (getAddressType(gatheredUtxos.utxos[i].address) === 0) {
-        const previousTxHex: string = await provider.esplora.getTxHex(
-          gatheredUtxos.utxos[i].txId
-        )
-        psbt.addInput({
-          hash: gatheredUtxos.utxos[i].txId,
-          index: gatheredUtxos.utxos[i].outputIndex,
-          nonWitnessUtxo: Buffer.from(previousTxHex, 'hex'),
-        })
-      }
-      if (getAddressType(gatheredUtxos.utxos[i].address) === 2) {
-        const redeemScript = bitcoin.script.compile([
-          bitcoin.opcodes.OP_0,
-          bitcoin.crypto.hash160(
-            Buffer.from(account.nestedSegwit.pubkey, 'hex')
-          ),
-        ])
-
-        psbt.addInput({
-          hash: gatheredUtxos.utxos[i].txId,
-          index: gatheredUtxos.utxos[i].outputIndex,
-          redeemScript: redeemScript,
-          witnessUtxo: {
-            value: gatheredUtxos.utxos[i].satoshis,
-            script: bitcoin.script.compile([
-              bitcoin.opcodes.OP_HASH160,
-              bitcoin.crypto.hash160(redeemScript),
-              bitcoin.opcodes.OP_EQUAL,
-            ]),
-          },
-        })
-      }
-      if (
-        getAddressType(gatheredUtxos.utxos[i].address) === 1 ||
-        getAddressType(gatheredUtxos.utxos[i].address) === 3
-      ) {
-        psbt.addInput({
-          hash: gatheredUtxos.utxos[i].txId,
-          index: gatheredUtxos.utxos[i].outputIndex,
-          witnessUtxo: {
-            value: gatheredUtxos.utxos[i].satoshis,
-            script: Buffer.from(gatheredUtxos.utxos[i].scriptPk, 'hex'),
-          },
-        })
-      }
-    }
-
-    if (gatheredUtxos.totalAmount < finalFee * 2 + wasmDeploySize) {
-      throw new OylTransactionError(Error('Insufficient Balance'))
-    }
-
-    psbt.addOutput({
-      value: finalFee + wasmDeploySize + 546,
-      address: account.taproot.address,
-    })
-
-    const changeAmount =
-      gatheredUtxos.totalAmount - (finalFee * 2 + wasmDeploySize)
-
-    psbt.addOutput({
-      address: account[account.spendStrategy.changeAddress].address,
-      value: changeAmount,
-    })
-
-    return { psbt: psbt.toBase64() }
-  } catch (error) {
-    throw new OylTransactionError(Error(String(error)))
+  if (tokenAmount <= 0n) {
+    throw new Error('Cannot process zero tokens')
   }
-} 
+
+  const tokenUtxos = await Promise.all([
+    selectAlkanesUtxos({
+      utxos,
+      greatestToLeast: false,
+      targetNumberOfAlkanes: Number(tokenAmount),
+      alkaneId: token,
+    }),
+  ])
+
+  const edicts: ProtoruneEdict[] = [
+    {
+      id: new ProtoruneRuneId(
+        u128(BigInt(token.block)),
+        u128(BigInt(token.tx))
+      ),
+      amount: u128(tokenAmount),
+      output: u32(5),
+    },
+  ]
+
+  const protostone: Buffer = encodeRunestoneProtostone({
+    protostones: [
+      ProtoStone.message({
+        protocolTag: 1n,
+        edicts,
+        pointer: 0,
+        refundPointer: 0,
+        calldata: encipher([]),
+      }),
+      ProtoStone.message({
+        protocolTag: 1n,
+        pointer: 0,
+        refundPointer: 0,
+        calldata: encipher(calldata),
+      }),
+    ],
+  }).encodedRunestone
+
+  const { psbt, fee } = await executePsbt({
+    alkanesUtxos: tokenUtxos[0].utxos,
+    protostone,
+    utxos,
+    feeRate,
+    account,
+    provider,
+  })
+
+  return { psbt, fee }
+}
+
+export const removeLiquidity = async ({
+  calldata,
+  token,
+  tokenAmount,
+  utxos,
+  feeRate,
+  account,
+  signer,
+  provider,
+}: {
+  calldata: bigint[]
+  token: AlkaneId
+  tokenAmount: bigint
+  utxos: FormattedUtxo[]
+  feeRate: number
+  account: Account
+  provider: Provider
+  signer: Signer
+}) => {
+  const { psbt } = await removeLiquidityPsbt({
+    calldata,
+    token,
+    tokenAmount,
+    utxos,
+    feeRate,
+    account,
+    provider,
+  })
+
+  const { signedPsbt } = await signer.signAllInputs({
+    rawPsbt: psbt,
+    finalize: true,
+  })
+
+  const pushResult = await pushPsbt({
+    psbtBase64: signedPsbt,
+    provider,
+  })
+
+  return pushResult
+}
+
+export const swapPsbt = async ({
+  calldata,
+  token,
+  tokenAmount,
+  utxos,
+  feeRate,
+  account,
+  provider,
+  frontendFee,
+  feeAddress,
+}: {
+  calldata: bigint[]
+  token: AlkaneId
+  tokenAmount: bigint
+  utxos: FormattedUtxo[]
+  feeRate: number
+  account: Account
+  provider: Provider
+  frontendFee?: bigint
+  feeAddress?: string
+}) => {
+  if (tokenAmount <= 0n) {
+    throw new OylTransactionError(Error('Cannot process zero tokens'))
+  }
+
+  const { utxos: alkanesUtxos } = selectAlkanesUtxos({
+    utxos,
+    greatestToLeast: false,
+    targetNumberOfAlkanes: Number(tokenAmount),
+    alkaneId: token,
+  })
+
+  // If there is a frontendFee, there is an extra utxo
+  const MIN_RELAY = 546n
+  const virtualOut = feeAddress && frontendFee && frontendFee >= MIN_RELAY ? 6 : 5
+
+  const edicts: ProtoruneEdict[] = [
+    {
+      id: new ProtoruneRuneId(
+        u128(BigInt(token.block)),
+        u128(BigInt(token.tx))
+      ),
+      amount: u128(tokenAmount),
+      output: u32(virtualOut),
+    },
+  ]
+
+  const protostone: Buffer = encodeRunestoneProtostone({
+    protostones: [
+      ProtoStone.message({
+        protocolTag: 1n,
+        edicts,
+        pointer: 0,
+        refundPointer: 0,
+        calldata: encipher([]),
+      }),
+      ProtoStone.message({
+        protocolTag: 1n,
+        pointer: 0,
+        refundPointer: 0,
+        calldata: encipher(calldata),
+      }),
+    ],
+  }).encodedRunestone
+
+  const psbtOptions = {
+    alkanesUtxos,
+    protostone,
+    utxos,
+    feeRate,
+    account,
+    provider,
+    frontendFee: undefined as bigint | undefined,
+    feeAddress: undefined as string | undefined,
+  }
+
+  if (frontendFee && feeAddress) {
+    psbtOptions.frontendFee = frontendFee
+    psbtOptions.feeAddress = feeAddress
+  }
+
+  const { psbt, fee } = await executePsbt(psbtOptions)
+
+  return { psbt, fee }
+}
+
+export const swap = async ({
+  calldata,
+  token,
+  tokenAmount,
+  utxos,
+  feeRate,
+  account,
+  signer,
+  provider,
+  frontendFee,
+  feeAddress,
+}: {
+  calldata: bigint[]
+  token: AlkaneId
+  tokenAmount: bigint
+  utxos: FormattedUtxo[]
+  feeRate: number
+  account: Account
+  provider: Provider
+  signer: Signer
+  frontendFee?: bigint
+  feeAddress?: string
+}) => {
+  const { psbt } = await swapPsbt({
+    calldata,
+    token,
+    tokenAmount,
+    utxos,
+    feeRate,
+    account,
+    provider,
+    frontendFee,
+    feeAddress,
+  })
+
+  const { signedPsbt } = await signer.signAllInputs({
+    rawPsbt: psbt,
+    finalize: true,
+  })
+
+  const pushResult = await pushPsbt({
+    psbtBase64: signedPsbt,
+    provider,
+  })
+
+  return pushResult
+}

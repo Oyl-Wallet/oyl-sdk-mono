@@ -9,6 +9,7 @@ import {
   accountAvailableBalance,
   accountUtxosToSpend,
   addressUtxosToSpend,
+  genericUtxoCommand,
 } from './utxo'
 import {
   mnemonicToAccountCommand,
@@ -49,6 +50,7 @@ const utxosCommand = new Command('utxo')
   .addCommand(accountUtxosToSpend)
   .addCommand(addressUtxosToSpend)
   .addCommand(accountAvailableBalance)
+  .addCommand(genericUtxoCommand)
 const btcCommand = new Command('btc')
   .description('Functions for sending bitcoin')
   .addCommand(btcSend)

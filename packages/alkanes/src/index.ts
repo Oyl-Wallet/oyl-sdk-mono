@@ -1,6 +1,7 @@
 export * from './alkanes'
 export * from './token'
 export * from './contract'
+export * from './types'
 export {
   encipher,
   encodeRunestoneProtostone,
