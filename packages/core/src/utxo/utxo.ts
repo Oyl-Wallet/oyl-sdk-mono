@@ -594,7 +594,7 @@ export const getSpendableUtxoSet = async ({
   sortUtxosGreatestToLeast?: boolean
   provider: Provider
 }) => {
-  const addressUtxos = await provider.esplora.getAddressUtxo(address)
+  const addressUtxos = (await provider.esplora.getAddressUtxo(address)) || []
 
   const fee = estimatedFee ?? minimumFee({
     taprootInputCount: 2,
