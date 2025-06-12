@@ -1,6 +1,62 @@
 import * as bitcoin from 'bitcoinjs-lib'
 import { Provider } from '../provider'
+import { FormattedUtxo, Account } from '../types'
+import { getAddressType } from '../account'
 
+export const addUtxoInputs = async (
+  psbt: bitcoin.Psbt,
+  utxos: FormattedUtxo[],
+  account: Account,
+  provider: Provider
+) => {
+  for (let i = 0; i < utxos.length; i++) {
+    if (getAddressType(utxos[i].address) === 0) {
+      const previousTxHex: string = await provider.esplora.getTxHex(
+        utxos[i].txId
+      )
+      psbt.addInput({
+        hash: utxos[i].txId,
+        index: utxos[i].outputIndex,
+        nonWitnessUtxo: Buffer.from(previousTxHex, 'hex'),
+      })
+    }
+    if (getAddressType(utxos[i].address) === 2) {
+      const redeemScript = bitcoin.script.compile([
+        bitcoin.opcodes.OP_0,
+        bitcoin.crypto.hash160(
+          Buffer.from(account.nestedSegwit.pubkey, 'hex')
+        ),
+      ])
+
+      psbt.addInput({
+        hash: utxos[i].txId,
+        index: utxos[i].outputIndex,
+        redeemScript: redeemScript,
+        witnessUtxo: {
+          value: utxos[i].satoshis,
+          script: bitcoin.script.compile([
+            bitcoin.opcodes.OP_HASH160,
+            bitcoin.crypto.hash160(redeemScript),
+            bitcoin.opcodes.OP_EQUAL,
+          ]),
+        },
+      })
+    }
+    if (
+      getAddressType(utxos[i].address) === 1 ||
+      getAddressType(utxos[i].address) === 3
+    ) {
+      psbt.addInput({
+        hash: utxos[i].txId,
+        index: utxos[i].outputIndex,
+        witnessUtxo: {
+          value: utxos[i].satoshis,
+          script: Buffer.from(utxos[i].scriptPk, 'hex'),
+        },
+      })
+    }
+  }
+}
 const detectInputType = (input: any) => {
   if (input.tapInternalKey || input.tapKeySig || input.tapLeafScript) {
     return "p2tr";

@@ -30,62 +30,19 @@ pnpm build
 
 # Build a specific package
 pnpm --filter @oyl/sdk-core build
-
-# Run tests
-pnpm test
 ```
 
-### Development
+### Tests
 
+Run tests in watch mode
 ```bash
-# Start development mode
-pnpm dev
-
-# Run tests in watch mode
 pnpm test --watch
 ```
 
-## Project Structure
-
+Run a specific test:
+```bash
+pnpm test -- src/utxo/utxo.test.ts
 ```
-oyl-sdk/
-├── packages/
-│   ├── core/                    # Shared core functionality
-│   │   ├── src/
-│   │   │   ├── account/        # Account management
-│   │   │   ├── provider/       # Provider interfaces
-│   │   │   ├── utils/          # Common utilities
-│   │   │   └── types/          # Shared TypeScript types
-│   │   └── package.json
-│   │
-│   ├── brc20/                  # BRC-20 protocol implementation
-│   ├── runes/                  # Runes protocol implementation
-│   └── alkanes/               # Alkanes protocol implementation
-│
-├── examples/                   # Example applications
-│   ├── brc20-dapp/            # BRC-20 example
-│   ├── runes-dapp/            # Runes example
-│   └── alkanes-dapp/          # Alkanes example
-│
-└── package.json               # Root package.json for workspace
-```
-
-## License
-
-MIT
-
-## Table of contents
-
-- [Oyl SDK](#oyl-sdk)
-  - [Table of contents](#table-of-contents)
-  - [Installation](#installation)
-  - [Usage](#usage)
-    - [Running the tests](#running-the-tests)
-    - [Using the cli](#using-the-cli-version)
-  - [Contributing](#contributing)
-  - [Versioning](#versioning)
-  - [Authors](#authors)
-  - [License](#license)
 
 ## Installation
 
@@ -157,38 +114,8 @@ node packages/cli/dist/index.js --help
 ### Running the tests
 
 ```sh
-$ yarn test
+$ pnpm test --filter @oyl/sdk-core
 ```
-
-### Using the CLI version
-
-```sh
-$ make reset
-```
-
-This does a fresh build of the lib directory which the cli uses after all the .ts files are compiled.
-
-The name of the bin for the cli is called "oyl". If you want to invoke it without having the yarn prefix you need to add it globally.
-Run this command:
-
-```sh
-$ yarn global add oyl
-```
-
-You can also link the package so it updates as you make local changes:
-
-```sh
-$ yarn link
-```
-
-If you want the program to be isolated to only this enviornment use the local script provided to you like this:
-
-```sh
-$ yarn oyl --help
-```
-
-e.g. `oyl utxos addressUtxos -a bcrt1qcr8te4kr609gcawutmrza0j4xv80jy8zeqchgx -p regtest`.
-For more detailed instructions on how to use the cli, refer to the README.md found in the cli directory.
 
 ## Documentation
 

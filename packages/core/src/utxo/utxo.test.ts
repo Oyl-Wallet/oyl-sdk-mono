@@ -1,8 +1,8 @@
-import '@types/jest'
 import { 
   addressUtxos,
   selectUtxos,
-  accountUtxos
+  accountUtxos,
+  getSpendableUtxoSet
 } from './utxo'
 import * as dotenv from 'dotenv'
 import * as bitcoin from 'bitcoinjs-lib'
@@ -429,9 +429,14 @@ const mockMultiCallResponses = [
   [
     { result: testOrdTxOutputs[0] }, // ord_output
     { result: testEsploraTxInfo[0] }, // esplora_tx
+    { result: { outpoints: [] } }, // alkanes
   ],
   // Second UTXO
-  [{ result: testOrdTxOutputs[1] }, { result: testEsploraTxInfo[1] }],
+  [
+    { result: testOrdTxOutputs[1] }, 
+    { result: testEsploraTxInfo[1] },
+    { result: { outpoints: [] } },
+  ],
   // Third UTXO (with alkane)
   [
     { result: testOrdTxOutputs[2] },
@@ -439,11 +444,23 @@ const mockMultiCallResponses = [
     { result: [testAlkanes[2]] },
   ],
   // Fourth UTXO (unconfirmed)
-  [{ result: testOrdTxOutputs[3] }, { result: testEsploraTxInfo[3] }],
+  [
+    { result: testOrdTxOutputs[3] }, 
+    { result: testEsploraTxInfo[3] },
+    { result: { outpoints: [] } },
+  ],
   // Fifth UTXO (with inscription)
-  [{ result: testOrdTxOutputs[4] }, { result: testEsploraTxInfo[4] }],
+  [
+    { result: testOrdTxOutputs[4] }, 
+    { result: testEsploraTxInfo[4] },
+    { result: { outpoints: [] } },
+  ],
   // Sixth UTXO (with rune)
-  [{ result: testOrdTxOutputs[5] }, { result: testEsploraTxInfo[5] }],
+  [
+    { result: testOrdTxOutputs[5] }, 
+    { result: testEsploraTxInfo[5] },
+    { result: { outpoints: [] } },
+  ],
 ]
 
 const mockSandshrewMultiCall = jest.fn().mockImplementation((calls: [string, (string | object)[]][]) => {
@@ -482,6 +499,7 @@ jest.mock('../provider/provider', () => {
         multiCall: (calls: [string, (string | object)[]][]) => mockSandshrewMultiCall(calls),
       },
       esplora: {
+        getAddressUtxo: () => Promise.resolve(testEsploraUtxos),
         getTxInfo: () => Promise.resolve({}),
       },
       ord: {
@@ -1272,6 +1290,210 @@ describe('utxo', () => {
       expect(result.accounts.nativeSegwit.totalBalance).toBe(0)
       expect(result.accounts.nestedSegwit.totalBalance).toBe(0)
       expect(result.accounts.legacy.totalBalance).toBe(0)
+    })
+  })
+})
+
+describe('getSpendableUtxoSet', () => {
+  const testAddress = 'bc1p8323esxy75z0x0a44ls9k89ge4ajsqrklcsmcf45nt6s43jrm23q9xh0t0'
+  
+  // Mock UTXOs with various properties
+  const mockUtxos: EsploraUtxo[] = [
+    // Regular spendable UTXO
+    {
+      txid: 'regular_tx1',
+      vout: 0,
+      value: 50000,
+      status: { confirmed: true, block_height: 280 },
+    },
+    // UTXO with runes
+    {
+      txid: 'caf43a99013ccb861b5e89dbd6ec28b469a22fff6e71e2aba545933a89d6477f',
+      vout: 2,
+      value: 1092,
+      status: { confirmed: true, block_height: 280 },
+    },
+    // UTXO with inscription
+    {
+      txid: '3c941bcba00667acc7f3d89821eb3981810fe746b436f0e3c516915fd9e5f15c',
+      vout: 1,
+      value: 2031,
+      status: { confirmed: true, block_height: 280 },
+    },
+    // UTXO with alkanes
+    {
+      txid: 'eae86d98a99c4bd6764fec35ba4cc57f569c35ed1f6fe665297c627d782b02ba',
+      vout: 0,
+      value: 546,
+      status: { confirmed: true, block_height: 280 },
+    },
+    // Another regular spendable UTXO
+    {
+      txid: 'regular_tx2',
+      vout: 0,
+      value: 30000,
+      status: { confirmed: true, block_height: 280 },
+    },
+  ]
+
+  beforeEach(() => {
+    // Reset mock implementations
+    mockSandshrewMultiCall.mockReset()
+    
+    // Mock the initial UTXO fetch
+    mockSandshrewMultiCall.mockImplementationOnce(() =>
+      Promise.resolve([
+        { result: mockUtxos },
+        { result: 283 },
+        {
+          result: {
+            outpoints: [],
+          },
+        },
+      ])
+    )
+  })
+
+  it('should select only spendable UTXOs and respect sorting order', async () => {
+    // Mock the subsequent multiCalls for each UTXO
+    mockSandshrewMultiCall.mockImplementation((calls) => {
+      const txIdVout = calls[0][1][0]
+      const index = mockUtxos.findIndex(
+        (utxo) => `${utxo.txid}:${utxo.vout}` === txIdVout
+      )
+
+      // Return different responses based on the UTXO type
+      if (index === 0 || index === 4) {
+        // Regular spendable UTXOs
+        return Promise.resolve([
+          { result: { indexed: true, inscriptions: [], runes: {} } }, // ord_output
+          { result: { vout: [{ scriptpubkey: 'mock_script' }] } }, // esplora_tx
+        ])
+      } else if (index === 1) {
+        // UTXO with runes
+        return Promise.resolve([
+          {
+            result: {
+              indexed: true,
+              inscriptions: [],
+              runes: {
+                'PIZZA•DELIVERY': { amount: 1e+21, divisibility: 18, symbol: 'P' }
+              },
+            },
+          },
+          { result: { vout: [{ scriptpubkey: 'mock_script' }] } },
+        ])
+      } else if (index === 2) {
+        // UTXO with inscription
+        return Promise.resolve([
+          {
+            result: {
+              indexed: true,
+              inscriptions: ['292360d7f558235212da3e366958729c41bb0a9aa23ff178a80226c2d66e2582i0'],
+              runes: {},
+            },
+          },
+          { result: { vout: [{ scriptpubkey: 'mock_script' }] } },
+        ])
+      } else if (index === 3) {
+        // UTXO with alkanes
+        return Promise.resolve([
+          {
+            result: {
+              indexed: true,
+              inscriptions: [],
+              runes: {},
+            },
+          },
+          { result: { vout: [{ scriptpubkey: 'mock_script' }] } },
+        ])
+      }
+
+      return Promise.resolve([])
+    })
+
+    // Test with greatest to least sorting
+    const result1 = await getSpendableUtxoSet({
+      address: testAddress,
+      amount: 40000,
+      provider: provider,
+      sortUtxosGreatestToLeast: true,
+    })
+
+    expect(result1).toHaveLength(1)
+    expect(result1[0].satoshis).toBe(50000) // Should select the largest spendable UTXO
+
+    // Test with least to greatest sorting
+    const result2 = await getSpendableUtxoSet({
+      address: testAddress,
+      amount: 40000,
+      provider: provider,
+      sortUtxosGreatestToLeast: false,
+    })
+
+    expect(result2).toHaveLength(2)
+    expect(result2[0].satoshis).toBe(30000) // Should select smaller UTXOs first
+    expect(result2[1].satoshis).toBe(50000)
+  })
+
+  it('should handle estimated fee correctly', async () => {
+    // Mock all UTXOs as spendable
+    mockSandshrewMultiCall.mockImplementation((calls) => {
+      return Promise.resolve([
+        { result: { indexed: true, inscriptions: [], runes: {} } },
+        { result: { vout: [{ scriptpubkey: 'mock_script' }] } },
+      ])
+    })
+
+    const result = await getSpendableUtxoSet({
+      address: testAddress,
+      amount: 40000,
+      estimatedFee: 5000,
+      provider: provider,
+    })
+
+    // Should select UTXOs that cover both amount and fee
+    const totalSelected = result.reduce((sum: number, utxo: FormattedUtxo) => sum + utxo.satoshis, 0)
+    expect(totalSelected).toBeGreaterThanOrEqual(45000) // amount + fee
+  })
+
+  it('should throw error when insufficient balance', async () => {
+    // Mock all UTXOs as spendable
+    mockSandshrewMultiCall.mockImplementation((calls) => {
+      return Promise.resolve([
+        { result: { indexed: true, inscriptions: [], runes: {} } },
+        { result: { vout: [{ scriptpubkey: 'mock_script' }] } },
+      ])
+    })
+
+    await expect(
+      getSpendableUtxoSet({
+        address: testAddress,
+        amount: 1000000, // Request more than available
+        provider: provider,
+      })
+    ).rejects.toThrow('Insufficient balance of utxos to cover spend and minimum fee.')
+  })
+
+  it('should respect satThreshold parameter', async () => {
+    // Mock all UTXOs as spendable
+    mockSandshrewMultiCall.mockImplementation((calls) => {
+      return Promise.resolve([
+        { result: { indexed: true, inscriptions: [], runes: {} } },
+        { result: { vout: [{ scriptpubkey: 'mock_script' }] } },
+      ])
+    })
+
+    const result = await getSpendableUtxoSet({
+      address: testAddress,
+      amount: 40000,
+      satThreshold: 10000, // Only UTXOs above 10000 sats
+      provider: provider,
+    })
+
+    // Should only select UTXOs above threshold
+    result.forEach((utxo: FormattedUtxo) => {
+      expect(utxo.satoshis).toBeGreaterThan(10000)
     })
   })
 })

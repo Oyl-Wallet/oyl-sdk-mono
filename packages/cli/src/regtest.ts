@@ -136,7 +136,7 @@ export const sendFromFaucet = new Command('sendFromFaucet')
       await btc.send({
         utxos,
         toAddress: options.to,
-        fee: 1000,
+        feeRate: faucet.feeRate,
         account: faucet.account,
         signer: faucet.signer,
         provider: faucet.provider,

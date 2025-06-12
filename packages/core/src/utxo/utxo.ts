@@ -594,6 +594,7 @@ export const getSpendableUtxoSet = async ({
   sortUtxosGreatestToLeast?: boolean
   provider: Provider
 }) => {
+  amount = Number(amount)
   const addressUtxos = (await provider.esplora.getAddressUtxo(address)) || []
 
   const fee = estimatedFee ?? minimumFee({
