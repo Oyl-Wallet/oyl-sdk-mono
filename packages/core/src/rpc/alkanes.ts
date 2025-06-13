@@ -110,7 +110,7 @@ export class AlkanesRpc {
   }
 
   async getAlkanesByAddress(params: { address: string; protocolTag?: string; name?: string }): Promise<Outpoint[]> {
-    return (await this._call('alkanes::by_address', [params.address, params.protocolTag, params.name])) as Outpoint[]
+    return (await this._call('alkanes_protorunesbyaddress', [{address: params.address, protocolTag: params.protocolTag, name: params.name}])) as Outpoint[]
   }
 
   async getAlkanesByOutpoint(params: { txid: string; vout: number; protocolTag?: string; height?: string }): Promise<any> {

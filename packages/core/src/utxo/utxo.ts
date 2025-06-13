@@ -545,7 +545,7 @@ export const filterUtxoMetaprotocol = async ({
   alkanesByAddress.outpoints.forEach((alkane) => {
     alkane.outpoint.txid = toTxId(alkane.outpoint.txid)
   })
-  
+
   const alkanesOutpoints = alkanesByAddress.outpoints.filter(
     ({ outpoint }) =>
       outpoint.txid === utxo.txid && outpoint.vout === utxo.vout
@@ -593,7 +593,7 @@ export const getSpendableUtxoSet = async ({
   satThreshold?: number
   sortUtxosGreatestToLeast?: boolean
   provider: Provider
-}) => {
+}): Promise<FormattedUtxo[]> => {
   amount = Number(amount)
   const addressUtxos = (await provider.esplora.getAddressUtxo(address)) || []
 
@@ -613,28 +613,36 @@ export const getSpendableUtxoSet = async ({
   const sortedUtxos = addressUtxos.sort((a, b) =>
     sortUtxosGreatestToLeast ? b.value - a.value : a.value - b.value
   )
+
   // filter out utxos that are not indexed
   const indexedUtxos = sortedUtxos.filter((u) => u.status.confirmed)
 
   // filter out utxos that are not above the satThreshold
   const spendableUtxos = indexedUtxos.filter((u) => u.value > satThreshold)
 
-  // iterate through spendableUtxos and sum the satoshis until the amount is reached
   let totalAmount = 0
   const selectedUtxos: FormattedUtxo[] = []
-  for (const u of spendableUtxos) {
-    const { formattedUtxo, isValid } = await filterUtxoMetaprotocol({
-      utxo: u,
-      address,
-      provider,
-    })
-    if (isValid) {
-      totalAmount += formattedUtxo.satoshis
-      selectedUtxos.push(formattedUtxo)
-    }
-    if (totalAmount >= amount) {
-      break
+  const CHUNK_SIZE = 3
+
+  // Process UTXOs in chunks of 5
+  for (let i = 0; i < spendableUtxos.length; i += CHUNK_SIZE) {
+    const chunk = spendableUtxos.slice(i, i + CHUNK_SIZE)
+    const results = await Promise.all(
+      chunk.map(utxo => filterUtxoMetaprotocol({ utxo, address, provider }))
+    )
+
+    // Add valid UTXOs to our selection
+    for (const { formattedUtxo, isValid } of results) {
+      if (isValid) {
+        totalAmount += formattedUtxo.satoshis
+        selectedUtxos.push(formattedUtxo)
+        if (totalAmount >= amount) {
+          return selectedUtxos
+        }
+      }
     }
   }
-  return selectedUtxos
+
+  // If we get here, we didn't find enough valid UTXOs
+  throw new OylTransactionError(new Error('Insufficient balance of utxos to cover spend and minimum fee.'))
 }
