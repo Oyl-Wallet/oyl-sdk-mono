@@ -3,9 +3,10 @@ import {
   Signer,
   Provider,
   timeout,
-  getEstimatedFee,
+  getPsbtFee,
   AlkanesPayload,
   FormattedUtxo,
+  Base64Psbt,
 } from '@oyl/sdk-core'
 import {
   createDeployCommitPsbt,
@@ -81,7 +82,7 @@ export const actualDeployCommitFee = async ({
     feeRate,
   })
 
-  const { fee: estimatedFee } = await getEstimatedFee({
+  const { fee: estimatedFee } = getPsbtFee({
     feeRate: effectiveFeeRate,
     psbt,
     provider,
@@ -97,7 +98,7 @@ export const actualDeployCommitFee = async ({
     fee: estimatedFee,
   })
 
-  const { fee: finalFee, vsize } = await getEstimatedFee({
+  const { fee: finalFee, vsize } = getPsbtFee({
     feeRate: effectiveFeeRate,
     psbt: finalPsbt,
     provider,
@@ -135,7 +136,7 @@ export const actualDeployRevealFee = async ({
     feeRate: effectiveFeeRate,
   })
 
-  const { fee: estimatedFee } = await getEstimatedFee({
+  const { fee: estimatedFee } = getPsbtFee({
     feeRate: effectiveFeeRate,
     psbt,
     provider,
@@ -152,7 +153,7 @@ export const actualDeployRevealFee = async ({
     fee: estimatedFee,
   })
 
-  const { fee: finalFee, vsize } = await getEstimatedFee({
+  const { fee: finalFee, vsize } = getPsbtFee({
     feeRate: effectiveFeeRate,
     psbt: finalPsbt,
     provider,

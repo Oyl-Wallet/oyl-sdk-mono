@@ -105,7 +105,7 @@ export const genericUtxoCommand = new Command('generic')
     console.log(await method(args))
   })
 
-export const getSpendableUtxoSetCommand = new Command('getSpendableUtxoSet')
+export const getAddressSpendableUtxoSetCommand = new Command('getAddressSpendableUtxoSet')
   .description('Returns a set of spendable UTXOs for a given address and amount')
   .requiredOption(
     '-p, --provider <provider>',
@@ -134,13 +134,13 @@ export const getSpendableUtxoSetCommand = new Command('getSpendableUtxoSet')
     'greatest'
   )
   /* @dev example call
-    oyl utxo getSpendableUtxoSet -p regtest -a bcrt1q54zh4xfz2jkqah8nqvp2ltl9mvrmf6s69h6au0 -m 10000 -f 546 -t 546 -s greatest
+    oyl utxo getAddressSpendableUtxoSet -p regtest -a bcrt1q54zh4xfz2jkqah8nqvp2ltl9mvrmf6s69h6au0 -m 10000 -f 546 -t 546 -s greatest
   */
   .action(async (options) => {
     const wallet: Wallet = new Wallet({ networkType: options.provider })
 
     console.log(
-      await utxo.getSpendableUtxoSet({
+      await utxo.getAddressSpendableUtxoSet({
         address: options.address,
         amount: parseInt(options.amount),
         estimatedFee: parseInt(options.fee),

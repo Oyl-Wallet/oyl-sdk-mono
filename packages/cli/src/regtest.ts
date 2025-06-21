@@ -133,14 +133,14 @@ export const sendFromFaucet = new Command('sendFromFaucet')
     )
 
     console.log(
-      await btc.send({
-        utxos,
-        toAddress: options.to,
-        feeRate: faucet.feeRate,
-        account: faucet.account,
-        signer: faucet.signer,
-        provider: faucet.provider,
-        amount: options.sats || 1000000,
-      })
+      // await btc.send({
+      //   utxos,
+      //   toAddress: options.to,
+      //   feeRate: faucet.feeRate,
+      //   account: faucet.account,
+      //   signer: faucet.signer,
+      //   provider: faucet.provider,
+      //   amount: options.sats || 1000000,
+      // })
     )
   })

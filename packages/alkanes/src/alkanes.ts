@@ -7,13 +7,11 @@ import {
 } from 'alkanes/lib/index'
 import { ProtoruneEdict } from 'alkanes/lib/protorune/protoruneedict'
 import {
-  Account,
-  Provider,
   Signer,
   getAddressType,
-  getEstimatedFee,
+  getPsbtFee,
   findXAmountOfSats,
-  formatInputsToSign,
+  addTaprootInternalPubkey,
   getOutputValueByVOutIndex,
   getVSize,
   inscriptionSats,
@@ -23,10 +21,11 @@ import {
   minimumFee,
   pushPsbt,
 } from '@oyl/sdk-core'
+import type { Account, Provider, FormattedUtxo, Base64Psbt } from '@oyl/sdk-core'
 import { toXOnly } from 'bitcoinjs-lib/src/psbt/bip371'
 import { LEAF_VERSION_TAPSCRIPT } from 'bitcoinjs-lib/src/payments/bip341'
 import { actualDeployCommitFee } from './contract'
-import { selectSpendableUtxos, type FormattedUtxo } from '@oyl/sdk-core'
+import { selectSpendableUtxos } from '@oyl/sdk-core'
 
 export interface ProtostoneMessage {
   protocolTag?: bigint
@@ -76,7 +75,7 @@ export const createExecutePsbt = async ({
   provider: Provider
   feeRate?: number
   fee?: number
-}) => {
+}): Promise<{ psbt: Base64Psbt, psbtHex: string }> => {
   try {
     const SAT_PER_VBYTE = feeRate ?? 1
     const MIN_RELAY = 546n
@@ -160,14 +159,14 @@ export const createExecutePsbt = async ({
       change = 0
     }
 
-    const formatted = await formatInputsToSign({
-      _psbt: psbt,
-      senderPublicKey: account.taproot.pubkey,
+    const formatted = addTaprootInternalPubkey({
+      psbt,
+      taprootInternalPubkey: account.taproot.pubkey,
       network: provider.getNetwork(),
     })
 
     return {
-      psbt: formatted.toBase64(),
+      psbt: formatted.toBase64() as Base64Psbt,
       psbtHex: formatted.toHex(),
     }
   } catch (err) {
@@ -245,7 +244,7 @@ export const createDeployCommitPsbt = async ({
   provider: Provider
   feeRate?: number
   fee?: number
-}) => {
+}): Promise<{ psbt: Base64Psbt, script: Buffer }> => {
   try {
     let gatheredUtxos = selectSpendableUtxos(utxos, account.spendStrategy)
 
@@ -364,13 +363,13 @@ export const createDeployCommitPsbt = async ({
       value: changeAmount,
     })
 
-    const formattedPsbtTx = await formatInputsToSign({
-      _psbt: psbt,
-      senderPublicKey: account.taproot.pubkey,
+    const formattedPsbtTx = addTaprootInternalPubkey({
+      psbt,
+      taprootInternalPubkey: account.taproot.pubkey,
       network: provider.getNetwork(),
     })
 
-    return { psbt: formattedPsbtTx.toBase64(), script }
+    return { psbt: formattedPsbtTx.toBase64() as Base64Psbt, script }
   } catch (error) {
     throw new OylTransactionError(error as Error)
   }
@@ -450,7 +449,7 @@ export const createDeployRevealPsbt = async ({
   provider: Provider
   fee?: number
   commitTxId: string
-}) => {
+}): Promise<{ psbt: Base64Psbt, fee: number }> => {
   try {
     if (!feeRate) {
       feeRate = (await provider.esplora.getFeeEstimates())['1']
@@ -523,7 +522,7 @@ export const createDeployRevealPsbt = async ({
     }
 
     return {
-      psbt: psbt.toBase64(),
+      psbt: psbt.toBase64() as Base64Psbt,
       fee: revealTxChange,
     }
   } catch (error) {
@@ -626,7 +625,7 @@ export const actualTransactRevealFee = async ({
     feeRate: effectiveFeeRate,
   })
 
-  const { fee: estimatedFee } = await getEstimatedFee({
+  const { fee: estimatedFee } = getPsbtFee({
     feeRate: effectiveFeeRate,
     psbt,
     provider,
@@ -643,7 +642,7 @@ export const actualTransactRevealFee = async ({
     fee: estimatedFee,
   })
 
-  const { fee: finalFee, vsize } = await getEstimatedFee({
+  const { fee: finalFee, vsize } = await getPsbtFee({
     feeRate: effectiveFeeRate,
     psbt: finalPsbt,
     provider,
@@ -682,7 +681,7 @@ export const actualExecuteFee = async ({
     feeRate,
   })
 
-  const { fee: estimatedFee } = await getEstimatedFee({
+  const { fee: estimatedFee } = getPsbtFee({
     feeRate,
     psbt,
     provider,
@@ -700,7 +699,7 @@ export const actualExecuteFee = async ({
     fee: estimatedFee,
   })
 
-  const { fee: finalFee, vsize } = await getEstimatedFee({
+  const { fee: finalFee, vsize } = await getPsbtFee({
     feeRate,
     psbt: finalPsbt,
     provider,
@@ -833,7 +832,7 @@ export const createTransactReveal = async ({
   provider: Provider
   fee?: number
   commitTxId: string
-}) => {
+}): Promise<{ psbt: Base64Psbt, fee: number }> => {
   try {
     if (!feeRate) {
       feeRate = (await provider.esplora.getFeeEstimates())['1']
@@ -906,7 +905,7 @@ export const createTransactReveal = async ({
     }
 
     return {
-      psbt: psbt.toBase64(),
+      psbt: psbt.toBase64() as Base64Psbt,
       fee: revealTxChange,
     }
   } catch (error) {

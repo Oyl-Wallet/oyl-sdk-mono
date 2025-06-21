@@ -7,7 +7,7 @@ import {
   OrdCollectibleData,
   minimumFee,
   findXAmountOfSats,
-  formatInputsToSign,
+  addTaprootInternalPubkey,
   getAddressType,
   OylTransactionError,
   pushPsbt,
@@ -174,9 +174,9 @@ export const createPsbt = async ({
       value: changeAmount,
     })
 
-    const formattedPsbtTx = await formatInputsToSign({
-      _psbt: psbt,
-      senderPublicKey: account.taproot.pubkey,
+    const formattedPsbtTx = addTaprootInternalPubkey({
+      psbt,
+      taprootInternalPubkey: account.taproot.pubkey,
       network: provider.getNetwork(),
     })
 

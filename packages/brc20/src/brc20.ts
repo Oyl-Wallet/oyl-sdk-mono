@@ -5,7 +5,7 @@ import {
   calculateTaprootTxSize,
   createInscriptionScript,
   findXAmountOfSats,
-  formatInputsToSign,
+  addTaprootInternalPubkey,
   getOutputValueByVOutIndex,
   tweakSigner,
   GatheredUtxos,
@@ -131,9 +131,9 @@ export const transferEstimate = async ({
       value: changeAmount,
     })
 
-    const updatedPsbt = await formatInputsToSign({
-      _psbt: psbt,
-      senderPublicKey: account.taproot.pubkey,
+    const updatedPsbt = addTaprootInternalPubkey({
+      psbt,
+      taprootInternalPubkey: account.taproot.pubkey,
       network: provider.getNetwork(),
     })
 
@@ -284,9 +284,9 @@ export const commit = async ({
       value: changeAmount,
     })
 
-    const updatedPsbt = await formatInputsToSign({
-      _psbt: psbt,
-      senderPublicKey: account.taproot.pubkey,
+    const updatedPsbt = addTaprootInternalPubkey({
+      psbt,
+      taprootInternalPubkey: account.taproot.pubkey,
       network: provider.getNetwork(),
     })
 
@@ -474,9 +474,9 @@ export const transfer = async ({
       })
     }
 
-    const updatedPsbt = await formatInputsToSign({
-      _psbt: psbt,
-      senderPublicKey: account.taproot.pubkey,
+    const updatedPsbt = addTaprootInternalPubkey({
+      psbt,
+      taprootInternalPubkey: account.taproot.pubkey,
       network: provider.getNetwork(),
     })
 

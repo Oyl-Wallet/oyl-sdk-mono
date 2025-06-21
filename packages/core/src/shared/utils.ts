@@ -104,36 +104,7 @@ export const getWitnessDataChunk = function (
   return contentChunks
 }
 
-export const formatInputsToSign = async ({
-  _psbt,
-  senderPublicKey,
-  network,
-}: {
-  _psbt: bitcoin.Psbt
-  senderPublicKey: string
-  network: bitcoin.Network
-}) => {
-  let index = 0
-  for await (const v of _psbt.data.inputs) {
-    const isSigned = v.finalScriptSig || v.finalScriptWitness
-    const lostInternalPubkey = !v.tapInternalKey
-    if (!isSigned || lostInternalPubkey) {
-      const tapInternalKey = toXOnly(Buffer.from(senderPublicKey, 'hex'))
-      const p2tr = bitcoin.payments.p2tr({
-        internalPubkey: tapInternalKey,
-        network: network,
-      })
-      if (
-        v.witnessUtxo?.script.toString('hex') === p2tr.output?.toString('hex')
-      ) {
-        v.tapInternalKey = tapInternalKey
-      }
-    }
-    index++
-  }
 
-  return _psbt
-}
 
 export const timeout = async (n: number) =>
   await new Promise((resolve) => setTimeout(resolve, n))

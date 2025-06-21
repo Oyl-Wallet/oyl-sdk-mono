@@ -10,7 +10,7 @@ import {
   accountUtxosToSpend,
   addressUtxosToSpend,
   genericUtxoCommand,
-  getSpendableUtxoSetCommand,
+  getAddressSpendableUtxoSetCommand,
 } from './utxo'
 import {
   mnemonicToAccountCommand,
@@ -52,7 +52,7 @@ const utxosCommand = new Command('utxo')
   .addCommand(addressUtxosToSpend)
   .addCommand(accountAvailableBalance)
   .addCommand(genericUtxoCommand)
-  .addCommand(getSpendableUtxoSetCommand)
+  .addCommand(getAddressSpendableUtxoSetCommand)
 const btcCommand = new Command('btc')
   .description('Functions for sending bitcoin')
   .addCommand(btcSend)

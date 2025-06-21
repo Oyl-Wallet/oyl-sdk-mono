@@ -1,17 +1,56 @@
 import * as bitcoin from 'bitcoinjs-lib'
 import { Provider } from '../provider'
-import { FormattedUtxo, Account } from '../types'
+import { FormattedUtxo, AddressType } from '../types'
 import { getAddressType } from '../account'
+import { EsploraRpc } from '../rpc/esplora'
+import { OylTransactionError } from '../shared/errors'
+import { PsbtInput } from '../types/psbt'
+import { toXOnly } from 'bitcoinjs-lib/src/psbt/bip371'
+import { Base64Psbt } from '../types/psbt'
 
-export const addUtxoInputs = async (
-  psbt: bitcoin.Psbt,
-  utxos: FormattedUtxo[],
-  account: Account,
-  provider: Provider
-) => {
+function extractPublicKeyFromNestedSegwit(txHex: string, inputIndex: number): Buffer | undefined {
+  const tx = bitcoin.Transaction.fromHex(txHex);
+  const input = tx.ins[inputIndex];
+  
+  // For nested segwit, public key is in witness[1]
+  if (input.witness && input.witness.length >= 2) {
+    return input.witness[1]; // This is your public key
+  }
+  
+  return undefined;
+}
+
+const detectInputType = (input: PsbtInput): "p2tr" | "p2wpkh" | "p2sh" | "p2pkh" => {
+  if (input.tapInternalKey || input.tapKeySig || input.tapLeafScript) {
+    return "p2tr";
+  }
+
+  if (input.witnessUtxo?.script) {
+    const scriptLen = input.witnessUtxo.script.length;
+    if (scriptLen === 34) return "p2tr";
+    if (scriptLen === 22) return "p2wpkh";
+    if (scriptLen === 23) return "p2sh";
+    if (scriptLen === 25) return "p2pkh";
+  }
+
+  if (input.redeemScript) return "p2sh";
+  if (input.witnessScript) return "p2wpkh";
+
+  throw new OylTransactionError(new Error('Input type not supported'))
+};
+
+export const addUtxoInputs = async ({
+  psbt,
+  utxos,
+  esploraProvider,
+}: {
+  psbt: bitcoin.Psbt
+  utxos: FormattedUtxo[]
+  esploraProvider: EsploraRpc
+}) => {
   for (let i = 0; i < utxos.length; i++) {
-    if (getAddressType(utxos[i].address) === 0) {
-      const previousTxHex: string = await provider.esplora.getTxHex(
+    if (getAddressType(utxos[i].address) === AddressType.P2PKH) {
+      const previousTxHex: string = await esploraProvider.getTxHex(
         utxos[i].txId
       )
       psbt.addInput({
@@ -20,12 +59,14 @@ export const addUtxoInputs = async (
         nonWitnessUtxo: Buffer.from(previousTxHex, 'hex'),
       })
     }
-    if (getAddressType(utxos[i].address) === 2) {
+    if (getAddressType(utxos[i].address) === AddressType.P2SH_P2WPKH) {
+      const publicKey = extractPublicKeyFromNestedSegwit(utxos[i].txId, utxos[i].outputIndex);
+      if (!publicKey) {
+        throw new OylTransactionError(new Error('Public key not found'))
+      }
       const redeemScript = bitcoin.script.compile([
         bitcoin.opcodes.OP_0,
-        bitcoin.crypto.hash160(
-          Buffer.from(account.nestedSegwit.pubkey, 'hex')
-        ),
+        bitcoin.crypto.hash160(publicKey),
       ])
 
       psbt.addInput({
@@ -43,8 +84,8 @@ export const addUtxoInputs = async (
       })
     }
     if (
-      getAddressType(utxos[i].address) === 1 ||
-      getAddressType(utxos[i].address) === 3
+      getAddressType(utxos[i].address) === AddressType.P2WPKH ||
+      getAddressType(utxos[i].address) === AddressType.P2TR
     ) {
       psbt.addInput({
         hash: utxos[i].txId,
@@ -57,26 +98,41 @@ export const addUtxoInputs = async (
     }
   }
 }
-const detectInputType = (input: any) => {
-  if (input.tapInternalKey || input.tapKeySig || input.tapLeafScript) {
-    return "p2tr";
+
+/**
+ * Prepares PSBT inputs for signing by adding missing tapInternalKey values to Taproot (P2TR) inputs only
+ */
+export const addTaprootInternalPubkey = ({
+  psbt,
+  taprootInternalPubkey,
+  network,
+}: {
+  psbt: bitcoin.Psbt
+  taprootInternalPubkey: string
+  network: bitcoin.Network
+}): bitcoin.Psbt => {
+  let index = 0
+  for (const v of psbt.data.inputs) {
+    const isSigned = v.finalScriptSig || v.finalScriptWitness
+    const lostInternalPubkey = !v.tapInternalKey
+    if (!isSigned || lostInternalPubkey) {
+      const tapInternalKey = toXOnly(Buffer.from(taprootInternalPubkey, 'hex'))
+      const p2tr = bitcoin.payments.p2tr({
+        internalPubkey: tapInternalKey,
+        network: network,
+      })
+      if (
+        v.witnessUtxo?.script.toString('hex') === p2tr.output?.toString('hex')
+      ) {
+        v.tapInternalKey = tapInternalKey
+      }
+    }
+    index++
   }
+  return psbt
+}
 
-  if (input.witnessUtxo?.script) {
-    const scriptLen = input.witnessUtxo.script.length;
-    if (scriptLen === 34) return "p2tr";
-    if (scriptLen === 22) return "p2wpkh";
-    if (scriptLen === 23) return "p2sh";
-    if (scriptLen === 25) return "p2pkh";
-  }
-
-  if (input.redeemScript) return "p2sh";
-  if (input.witnessScript) return "p2wpkh";
-
-  return "p2tr";
-};
-
-const getTaprootWitnessSize = (input: any) => {
+const getTaprootWitnessSize = (input: PsbtInput): number => {
   // Base taproot witness size (signature)
   let witnessSize = 16.25; // 65 bytes / 4 (witness discount)
 
@@ -92,7 +148,6 @@ const getTaprootWitnessSize = (input: any) => {
       witnessSize += input.witnessStack.reduce((sum: number, item: Buffer) => sum + item.length, 0) / 4;
     }
   }
-
   return witnessSize;
 };
 
@@ -135,15 +190,15 @@ const SIZES = {
   }
 };
 
-export const getEstimatedFee = async ({
+export const getPsbtFee = ({
   feeRate,
   psbt,
   provider,
 }: {
   feeRate: number
-  psbt: string
+  psbt: Base64Psbt
   provider: Provider
-}) => {
+}): { fee: number; vsize: number } => {
   const psbtObj = bitcoin.Psbt.fromBase64(psbt, { network: provider.getNetwork() });
 
   // Base overhead

@@ -6,11 +6,13 @@ import {
   AlkanesByAddressResponse,
   AlkanesOutpoint,
   OrdOutput,
-  EsploraUtxo
+  EsploraUtxo,
+  AddressType
 } from '../types'
 import { OylTransactionError } from '../shared/errors'
 import { 
   getAddressKey,
+  getAddressType,
 } from '../account'
 import asyncPool from 'tiny-async-pool'
 import { toTxId } from '../shared/utils'
@@ -579,13 +581,14 @@ export const filterUtxoMetaprotocol = async ({
   return { formattedUtxo, isValid }
 }
 
-export const getSpendableUtxoSet = async ({
+export async function getAddressSpendableUtxoSet({
   address,
   amount,
   estimatedFee,
   satThreshold = UTXO_ASSET_SAT_THRESHOLD,
   sortUtxosGreatestToLeast = true,
   provider,
+  allowPartial = false,
 }: {
   address: string
   amount: number
@@ -593,56 +596,127 @@ export const getSpendableUtxoSet = async ({
   satThreshold?: number
   sortUtxosGreatestToLeast?: boolean
   provider: Provider
-}): Promise<FormattedUtxo[]> => {
-  amount = Number(amount)
-  const addressUtxos = (await provider.esplora.getAddressUtxo(address)) || []
+  allowPartial?: boolean
+}): Promise<{ utxos: FormattedUtxo[], totalAmount: number, hasEnough: boolean }> {
+  amount = Number(amount);
+  const addressType = getAddressType(address);
 
-  const fee = estimatedFee ?? minimumFee({
-    taprootInputCount: 2,
-    nonTaprootInputCount: 0,
+  if (!addressType) {
+    throw new Error('Invalid address');
+  }
+
+  const addressUtxos = (await provider.esplora.getAddressUtxo(address)) || [];
+
+  const minFee = estimatedFee ?? minimumFee({
+    taprootInputCount: addressType === AddressType.P2TR ? 2 : 0,
+    nonTaprootInputCount: addressType === AddressType.P2TR ? 0 : 2,
     outputCount: 3,
-  })
+  });
 
   // confirm sum of utxos is greater than amount
-  const totalSatoshis = addressUtxos.reduce((sum, u) => sum + u.value, 0)
-  if (totalSatoshis < amount + fee) {
-    throw new OylTransactionError(new Error('Insufficient balance of utxos to cover spend and minimum fee.'))
+  const totalSatoshis = addressUtxos.reduce((sum, u) => sum + u.value, 0);
+  if (totalSatoshis < amount + minFee && !allowPartial) {
+    throw new Error('Insufficient balance of utxos to cover spend amount and fee.');
   }
 
   // sort addressUtxos by satoshis according to spendStrategy
   const sortedUtxos = addressUtxos.sort((a, b) =>
     sortUtxosGreatestToLeast ? b.value - a.value : a.value - b.value
-  )
+  );
 
   // filter out utxos that are not indexed
-  const indexedUtxos = sortedUtxos.filter((u) => u.status.confirmed)
+  const indexedUtxos = sortedUtxos.filter((u) => u.status.confirmed);
 
   // filter out utxos that are not above the satThreshold
-  const spendableUtxos = indexedUtxos.filter((u) => u.value > satThreshold)
+  const spendableUtxos = indexedUtxos.filter((u) => u.value > satThreshold);
 
-  let totalAmount = 0
-  const selectedUtxos: FormattedUtxo[] = []
-  const CHUNK_SIZE = 3
+  let totalAmount = 0;
+  const selectedUtxos: FormattedUtxo[] = [];
+  const CHUNK_SIZE = 3;
 
-  // Process UTXOs in chunks of 5
+  // Process UTXOs in chunks of 3
   for (let i = 0; i < spendableUtxos.length; i += CHUNK_SIZE) {
-    const chunk = spendableUtxos.slice(i, i + CHUNK_SIZE)
+    const chunk = spendableUtxos.slice(i, i + CHUNK_SIZE);
     const results = await Promise.all(
       chunk.map(utxo => filterUtxoMetaprotocol({ utxo, address, provider }))
-    )
+    );
 
-    // Add valid UTXOs to our selection
+    // Add valid UTXOs to our selection and update fee for each additional vin utxo
+    let updatedFee = minFee;
     for (const { formattedUtxo, isValid } of results) {
       if (isValid) {
-        totalAmount += formattedUtxo.satoshis
-        selectedUtxos.push(formattedUtxo)
-        if (totalAmount >= amount) {
-          return selectedUtxos
+        totalAmount += formattedUtxo.satoshis;
+        selectedUtxos.push(formattedUtxo);
+        updatedFee = estimatedFee ?? minimumFee({
+          taprootInputCount: addressType === AddressType.P2TR ? selectedUtxos.length + 1 : 0,
+          nonTaprootInputCount: addressType === AddressType.P2TR ? 0 : selectedUtxos.length + 1,
+          outputCount: 3,
+        });
+        if (totalAmount >= amount + updatedFee) {
+          return { utxos: selectedUtxos, totalAmount, hasEnough: true };
         }
       }
     }
   }
 
   // If we get here, we didn't find enough valid UTXOs
-  throw new OylTransactionError(new Error('Insufficient balance of utxos to cover spend and minimum fee.'))
+  if (allowPartial) {
+    return { utxos: selectedUtxos, totalAmount, hasEnough: false };
+  }
+  
+  throw new Error('Insufficient balance of utxos to cover spend amount and fee.');
+}
+
+// create a function that takes in an account and uses the account.spendStrategy to get the utxos from each address
+export const getAccountSpendableUtxoSet = async ({
+  account,
+  amount,
+  estimatedFee,
+  satThreshold = UTXO_ASSET_SAT_THRESHOLD,
+  provider,
+}: {
+  account: Account
+  amount: number
+  estimatedFee?: number
+  satThreshold?: number
+  provider: Provider
+}): Promise<{ utxos: FormattedUtxo[], totalAmount: number }> => {
+  amount = Number(amount);
+  let totalAmount = 0;
+  const allSelectedUtxos: FormattedUtxo[] = [];
+  
+  // Iterate through addresses in the spend strategy order
+  for (const addressKey of account.spendStrategy.addressOrder) {
+    const address = account[addressKey].address;
+    
+    try {
+      // Try to get UTXOs from this address, allowing partial results
+      const { utxos: addressUtxos, totalAmount: addressTotalAmount, hasEnough } = await getAddressSpendableUtxoSet({
+        address,
+        amount: amount - totalAmount, // Only need remaining amount
+        estimatedFee,
+        satThreshold,
+        sortUtxosGreatestToLeast: account.spendStrategy.utxoSortGreatestToLeast,
+        provider,
+        allowPartial: true,
+      });
+
+      // Add UTXOs from this address to our collection
+      allSelectedUtxos.push(...addressUtxos);
+      totalAmount += addressTotalAmount;
+      
+      // If we have enough from this address, we're done
+      if (hasEnough) {
+        return { utxos: allSelectedUtxos, totalAmount };
+      }
+      
+    } catch (error) {
+      // If this address fails, continue to the next one
+      console.warn(`Failed to get UTXOs from address ${address}:`, error);
+      continue;
+    }
+  }
+  
+  // If we get here, we didn't find enough UTXOs across all addresses
+  throw new Error('Insufficient balance across all addresses to cover spend amount and fee.');
 }

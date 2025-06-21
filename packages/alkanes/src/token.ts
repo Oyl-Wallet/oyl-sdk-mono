@@ -12,15 +12,16 @@ import {
   timeout,
   findXAmountOfSats,
   inscriptionSats,
-  formatInputsToSign,
+  addTaprootInternalPubkey,
   getAddressType,
   minimumFee,
   FormattedUtxo,
   GatheredUtxos,
   selectAlkanesUtxos,
   selectSpendableUtxos,
-  getEstimatedFee,
+  getPsbtFee,
   pushPsbt,
+  Base64Psbt,
 } from '@oyl/sdk-core'
 import { deployCommit, deployReveal } from './alkanes'
 
@@ -84,7 +85,7 @@ export const createSendPsbt = async ({
   amount: number
   feeRate?: number
   fee?: number
-}) => {
+}): Promise<{ psbt: Base64Psbt }> => {
   try {
     let gatheredUtxos = selectSpendableUtxos(utxos, account.spendStrategy)
 
@@ -270,13 +271,13 @@ export const createSendPsbt = async ({
       value: changeAmount,
     })
 
-    const formattedPsbtTx = await formatInputsToSign({
-      _psbt: psbt,
-      senderPublicKey: account.taproot.pubkey,
+    const formattedPsbtTx = addTaprootInternalPubkey({
+      psbt,
+      taprootInternalPubkey: account.taproot.pubkey,
       network: provider.getNetwork(),
     })
 
-    return { psbt: formattedPsbtTx.toBase64() }
+    return { psbt: formattedPsbtTx.toBase64() as Base64Psbt }
   } catch (error) {
     throw new OylTransactionError(error as Error)
   }
@@ -364,7 +365,7 @@ export const actualSendFee = async ({
     feeRate,
   })
 
-  const { fee: estimatedFee } = await getEstimatedFee({
+  const { fee: estimatedFee } = getPsbtFee({
     feeRate,
     psbt,
     provider,
@@ -381,7 +382,7 @@ export const actualSendFee = async ({
     fee: estimatedFee,
   })
 
-  const { fee: finalFee, vsize } = await getEstimatedFee({
+  const { fee: finalFee, vsize } = getPsbtFee({
     feeRate,
     psbt: finalPsbt,
     provider,
@@ -615,9 +616,9 @@ export const createSplitPsbt = async ({
       value: changeAmount,
     })
 
-    const formattedPsbtTx = await formatInputsToSign({
-      _psbt: psbt,
-      senderPublicKey: account.taproot.pubkey,
+    const formattedPsbtTx = addTaprootInternalPubkey({
+      psbt,
+      taprootInternalPubkey: account.taproot.pubkey,
       network: provider.getNetwork(),
     })
 

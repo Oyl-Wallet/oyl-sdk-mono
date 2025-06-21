@@ -172,7 +172,7 @@ const account = Account.fromMnemonic({
 });
 
 // Send Bitcoin
-const result = await btc.createPsbt({
+const result = await btc.createBtcSendPsbt({
   utxos: accountUtxos,
   toAddress: 'recipient-address',
   amount: 10000, // in satoshis

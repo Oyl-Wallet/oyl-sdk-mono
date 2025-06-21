@@ -2,7 +2,7 @@ import {
   addressUtxos,
   selectUtxos,
   accountUtxos,
-  getSpendableUtxoSet
+  getAddressSpendableUtxoSet
 } from './utxo'
 import * as dotenv from 'dotenv'
 import * as bitcoin from 'bitcoinjs-lib'
@@ -1294,7 +1294,7 @@ describe('utxo', () => {
   })
 })
 
-describe('getSpendableUtxoSet', () => {
+describe('getAddressSpendableUtxoSet', () => {
   const testAddress = 'bc1p8323esxy75z0x0a44ls9k89ge4ajsqrklcsmcf45nt6s43jrm23q9xh0t0'
   
   // Mock UTXOs with various properties
@@ -1413,27 +1413,28 @@ describe('getSpendableUtxoSet', () => {
     })
 
     // Test with greatest to least sorting
-    const result1 = await getSpendableUtxoSet({
+    const result1 = await getAddressSpendableUtxoSet({
       address: testAddress,
       amount: 40000,
       provider: provider,
       sortUtxosGreatestToLeast: true,
     })
 
-    expect(result1).toHaveLength(1)
-    expect(result1[0].satoshis).toBe(50000) // Should select the largest spendable UTXO
+    expect(result1.utxos).toHaveLength(1)
+    expect(result1.utxos[0].satoshis).toBe(50000) // Should select the largest spendable UTXO
 
     // Test with least to greatest sorting
-    const result2 = await getSpendableUtxoSet({
+    const result2 = await getAddressSpendableUtxoSet({
       address: testAddress,
       amount: 40000,
       provider: provider,
       sortUtxosGreatestToLeast: false,
+      allowPartial: false,
     })
 
-    expect(result2).toHaveLength(2)
-    expect(result2[0].satoshis).toBe(30000) // Should select smaller UTXOs first
-    expect(result2[1].satoshis).toBe(50000)
+    expect(result2.utxos).toHaveLength(2)
+    expect(result2.utxos[0].satoshis).toBe(30000) // Should select smaller UTXOs first
+    expect(result2.utxos[1].satoshis).toBe(50000)
   })
 
   it('should handle estimated fee correctly', async () => {
@@ -1445,7 +1446,7 @@ describe('getSpendableUtxoSet', () => {
       ])
     })
 
-    const result = await getSpendableUtxoSet({
+    const result = await getAddressSpendableUtxoSet({
       address: testAddress,
       amount: 40000,
       estimatedFee: 5000,
@@ -1453,7 +1454,7 @@ describe('getSpendableUtxoSet', () => {
     })
 
     // Should select UTXOs that cover both amount and fee
-    const totalSelected = result.reduce((sum: number, utxo: FormattedUtxo) => sum + utxo.satoshis, 0)
+    const totalSelected = result.utxos.reduce((sum: number, utxo: FormattedUtxo) => sum + utxo.satoshis, 0)
     expect(totalSelected).toBeGreaterThanOrEqual(45000) // amount + fee
   })
 
@@ -1467,7 +1468,7 @@ describe('getSpendableUtxoSet', () => {
     })
 
     await expect(
-      getSpendableUtxoSet({
+      getAddressSpendableUtxoSet({
         address: testAddress,
         amount: 1000000, // Request more than available
         provider: provider,
@@ -1484,7 +1485,7 @@ describe('getSpendableUtxoSet', () => {
       ])
     })
 
-    const result = await getSpendableUtxoSet({
+    const result = await getAddressSpendableUtxoSet({
       address: testAddress,
       amount: 40000,
       satThreshold: 10000, // Only UTXOs above 10000 sats
@@ -1492,7 +1493,7 @@ describe('getSpendableUtxoSet', () => {
     })
 
     // Should only select UTXOs above threshold
-    result.forEach((utxo: FormattedUtxo) => {
+    result.utxos.forEach((utxo: FormattedUtxo) => {
       expect(utxo.satoshis).toBeGreaterThan(10000)
     })
   })

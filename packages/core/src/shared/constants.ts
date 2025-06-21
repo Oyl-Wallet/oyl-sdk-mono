@@ -5,7 +5,9 @@ import * as path from 'path'
 
 dotenv.config({ path: path.resolve(__dirname, '../../../../.env') })
 
-export const UTXO_DUST = 546
+export const BTC_DUST_AMOUNT = 295
+export const DEFAULT_SEND_FEE = 546
+
 export const UTXO_ASSET_SAT_THRESHOLD = 1000
 
 export const maximumScriptBytes = 520

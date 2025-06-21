@@ -1,6 +1,6 @@
 import * as bitcoin from 'bitcoinjs-lib'
-import { createPsbt } from './btc'
-import { Account, mnemonicToAccount, Provider, FormattedUtxo } from '@oyl/sdk-core'
+import { createBtcSendPsbt } from './btc'
+import { Account, mnemonicToAccount, Provider, FormattedUtxo, getWalletPrivateKeys, Signer } from '@oyl/sdk-core'
 
 // Mock the core module
 // jest.mock('@oyl/sdk-core', () => {
@@ -47,10 +47,25 @@ const provider = new Provider({
   networkType: 'mainnet',
 })
 
+const mnemonic = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about'
+
 const account: Account = mnemonicToAccount({
-  mnemonic:
-    'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about',
+  mnemonic,
   opts: { index: 0, network: bitcoin.networks.regtest },
+})
+
+const privateKeys = getWalletPrivateKeys({
+  mnemonic,
+  opts: {
+    network: account.network,
+  },
+})
+
+const signer = new Signer(account.network, {
+  taprootPrivateKey: privateKeys.taproot.privateKey,
+  segwitPrivateKey: privateKeys.nativeSegwit.privateKey,
+  nestedSegwitPrivateKey: privateKeys.nestedSegwit.privateKey,
+  legacyPrivateKey: privateKeys.legacy.privateKey,
 })
 
 const { address } = bitcoin.payments.p2wpkh({
@@ -92,17 +107,46 @@ const testFormattedUtxos: FormattedUtxo[] = [
 
 describe('btc sendTx', () => {
   it('construct psbt', async () => {
-    const result = await createPsbt({
+    const feeRate = 5
+    const { psbt, fee: expectedFee, vsize: expectedVsize } = await createBtcSendPsbt({
       utxos: testFormattedUtxos,
       toAddress: address!,
       amount: 100000,
-      fee: 10,
+      feeRate,
       account: account,
       provider: provider,
     })
 
-    console.log('testxx: ', result)
+    console.log('testxx: ', psbt)
 
-    expect(result.psbt).toBeDefined()
+    const { signedPsbt } = await signer.signAllInputs({
+      rawPsbt: psbt,
+      finalize: true,
+    })
+
+    console.log('signedPsbt: ', signedPsbt)
+
+    // get actual fee from signedPsbt
+    const rawPsbt = bitcoin.Psbt.fromBase64(signedPsbt, {
+      network: account.network,
+    }).extractTransaction()
+
+    console.log('rawPsbt: ', rawPsbt.toHex())
+
+    const actualVsize = rawPsbt.virtualSize()
+    console.log('vsize: ', actualVsize)
+
+    const actualFee = actualVsize * feeRate
+
+    console.log('feeRate: ', feeRate)
+    console.log('expectedFee: ', expectedFee)
+    console.log('expectedVsize: ', expectedVsize)
+    console.log('actualFee: ', actualFee)
+    console.log('actualVsize: ', actualVsize)
+
+    expect(actualFee).toBe(expectedFee)
+    expect(actualVsize).toBe(expectedVsize)
+
+    expect(signedPsbt).toBeDefined()
   })
 })

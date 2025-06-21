@@ -1,19 +1,14 @@
 import * as bitcoin from 'bitcoinjs-lib'
 import { 
-  Account,
-  Provider,
-  Signer,
-  FormattedUtxo,
   addUtxoInputs,
-  formatInputsToSign,
+  addTaprootInternalPubkey,
   OylTransactionError,
-  pushPsbt,
-  getEstimatedFee,
+  getPsbtFee,
 } from '@oyl/sdk-core'
+import type { Account, Provider, FormattedUtxo, Base64Psbt } from '@oyl/sdk-core'
+import { BTC_DUST_AMOUNT, DEFAULT_SEND_FEE } from '@oyl/sdk-core'
 
-export const BTC_DUST_AMOUNT = 295
-
-export const createPsbt = async ({
+export const btcSendPsbt = async ({
   utxos,
   toAddress,
   amount,
@@ -27,7 +22,7 @@ export const createPsbt = async ({
   fee: number
   account: Account
   provider: Provider
-}) => {
+}): Promise<{ psbt: Base64Psbt }> => {
   try {
     if (!utxos?.length) {
       throw new Error('No utxos provided')
@@ -40,7 +35,11 @@ export const createPsbt = async ({
       network: provider.getNetwork(),
     })
 
-    await addUtxoInputs(psbt, utxos, account, provider)
+    await addUtxoInputs({
+      psbt,
+      utxos,
+      esploraProvider: provider.esplora,
+    })
 
     psbt.addOutput({
       address: toAddress,
@@ -61,19 +60,19 @@ export const createPsbt = async ({
       })
     }
 
-    const updatedPsbt = await formatInputsToSign({
-      _psbt: psbt,
-      senderPublicKey: account.taproot.pubkey,
+    const updatedPsbt = addTaprootInternalPubkey({
+      psbt,
+      taprootInternalPubkey: account.taproot.pubkey,
       network: provider.getNetwork(),
     })
 
-    return { psbt: updatedPsbt.toBase64(), fee }
+    return { psbt: updatedPsbt.toBase64() as Base64Psbt }
   } catch (error) {
     throw new OylTransactionError(error instanceof Error ? error : new Error(String(error)))
   }
 }
 
-export const btcSendFee = async ({
+export const createBtcSendPsbt = async ({
   utxos,
   toAddress,
   amount,
@@ -87,133 +86,33 @@ export const btcSendFee = async ({
   feeRate: number
   account: Account
   provider: Provider
-}) => {
-  const defaultFee = 1000
-  const { psbt } = await createPsbt({
+}): Promise<{ psbt: Base64Psbt; fee: number; vsize: number }> => {
+  // First create a psbt with a minimum fee
+  const { psbt } = await btcSendPsbt({
     utxos,
     toAddress,
     amount,
-    fee: defaultFee,
+    fee: DEFAULT_SEND_FEE,
     account,
     provider,
   })
 
-  const { fee: estimatedFee } = await getEstimatedFee({
+  // Then use the target feeRate to get the actual fee for the psbt
+  const { fee, vsize } = getPsbtFee({
     feeRate,
     psbt,
     provider,
   })
 
-  const { psbt: finalPsbt } = await createPsbt({
+  // Reconstruct the psbt with the actual fee
+  const { psbt: finalPsbt } = await btcSendPsbt({
     utxos,
     toAddress,
     amount,
-    fee: estimatedFee,
+    fee,
     account,
     provider,
   })
 
-  const { fee: finalFee, vsize } = await getEstimatedFee({
-    feeRate,
-    psbt: finalPsbt,
-    provider,
-  })
-
-  return { fee: finalFee, vsize }
-}
-
-export const send = async ({
-  utxos,
-  toAddress,
-  amount,
-  feeRate,
-  account,
-  provider,
-  signer,
-}: {
-  utxos: FormattedUtxo[]
-  toAddress: string
-  amount: number
-  feeRate: number
-  account: Account
-  provider: Provider
-  signer: Signer
-}) => {
-  const { fee: actualFee } = await btcSendFee({
-    utxos,
-    toAddress,
-    amount,
-    feeRate,
-    account,
-    provider
-  })
-
-  const { psbt: finalPsbt } = await createPsbt({
-    utxos,
-    toAddress,
-    amount,
-    fee: actualFee,
-    account,
-    provider,
-  })
-
-  const { signedPsbt } = await signer.signAllInputs({
-    rawPsbt: finalPsbt,
-    finalize: true,
-  })
-
-  const result = await pushPsbt({
-    psbtBase64: signedPsbt,
-    provider,
-  })
-
-  return result
-}
-
-export const actualFee = async ({
-  utxos,
-  toAddress,
-  amount,
-  fee,
-  account,
-  provider,
-  signer,
-}: {
-  utxos: FormattedUtxo[]
-  toAddress: string
-  amount: number
-  fee: number
-  account: Account
-  provider: Provider
-  signer: Signer
-}) => {
-  const { psbt } = await createPsbt({
-    utxos,
-    toAddress: toAddress,
-    amount: amount,
-    fee: fee,
-    account: account,
-    provider: provider,
-  })
-
-  const { signedPsbt } = await signer.signAllInputs({
-    rawPsbt: psbt,
-    finalize: true,
-  })
-
-  let rawPsbt = bitcoin.Psbt.fromBase64(signedPsbt, {
-    network: account.network,
-  })
-
-  const signedHexPsbt = rawPsbt.extractTransaction().toHex()
-
-  if (!provider.sandshrew.bitcoindRpc.testMemPoolAccept) {
-    throw new Error('testMemPoolAccept method not available')
-  }
-
-  const vsize = (
-    await provider.sandshrew.bitcoindRpc.testMemPoolAccept([signedHexPsbt])
-  )[0].vsize
-
-  return { fee }
+  return { psbt: finalPsbt, fee, vsize }
 }

@@ -2,7 +2,7 @@ import { encodeVarint, minimumFee } from '@oyl/sdk-core'
 import * as bitcoin from 'bitcoinjs-lib'
 import {
   findXAmountOfSats,
-  formatInputsToSign,
+  addTaprootInternalPubkey,
   getOutputValueByVOutIndex,
   hexToLittleEndian,
   inscriptionSats,
@@ -231,9 +231,9 @@ export const createSendPsbt = async ({
       value: changeAmount,
     })
 
-    const formattedPsbtTx = await formatInputsToSign({
-      _psbt: psbt,
-      senderPublicKey: account.taproot.pubkey,
+    const formattedPsbtTx = addTaprootInternalPubkey({
+      psbt,
+      taprootInternalPubkey: account.taproot.pubkey,
       network: provider.network,
     })
 
@@ -362,9 +362,9 @@ export const createMintPsbt = async ({
       value: changeAmount,
     })
 
-    const formattedPsbtTx = await formatInputsToSign({
-      _psbt: psbt,
-      senderPublicKey: account.taproot.pubkey,
+    const formattedPsbtTx = addTaprootInternalPubkey({
+      psbt,
+      taprootInternalPubkey: account.taproot.pubkey,
       network: provider.network,
     })
 
@@ -522,9 +522,9 @@ export const createEtchCommit = async ({
       value: changeAmount,
     })
 
-    const formattedPsbtTx = await formatInputsToSign({
-      _psbt: psbt,
-      senderPublicKey: account.taproot.pubkey,
+    const formattedPsbtTx = addTaprootInternalPubkey({
+      psbt,
+      taprootInternalPubkey: account.taproot.pubkey,
       network: provider.network,
     })
 

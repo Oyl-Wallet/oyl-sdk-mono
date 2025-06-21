@@ -8,15 +8,16 @@ import { ProtoStone } from '@oyl/sdk-alkanes'
 import {
   Account,
   findXAmountOfSats,
-  formatInputsToSign,
+  addTaprootInternalPubkey,
   getAddressType,
   OylTransactionError,
   Provider,
   pushPsbt,
   Signer,
+  Base64Psbt,
 } from '@oyl/sdk-core'
 import * as bitcoin from 'bitcoinjs-lib'
-import { getEstimatedFee } from '@oyl/sdk-core'
+import { getPsbtFee } from '@oyl/sdk-core'
 import { minimumFee } from '@oyl/sdk-core'
 import { AlkanesAMMPoolDecoder } from './pool'
 import { PoolDetailsResult, PoolOpcodes } from './utils'
@@ -274,7 +275,7 @@ export const createNewPoolPsbt = async ({
     provider,
   })
 
-  const { fee } = await getEstimatedFee({
+  const { fee } = getPsbtFee({
     psbt,
     provider,
     feeRate,
@@ -413,7 +414,7 @@ export const poolPsbt = async ({
   provider: Provider
   feeRate?: number
   fee?: number
-}) => {
+}): Promise<{ psbt: Base64Psbt, psbtHex: string }> => {
   try {
     let gatheredUtxos = selectSpendableUtxos(utxos, account.spendStrategy)
 
@@ -564,14 +565,14 @@ export const poolPsbt = async ({
       value: changeAmount,
     })
 
-    const formattedPsbtTx = await formatInputsToSign({
-      _psbt: psbt,
-      senderPublicKey: account.taproot.pubkey,
+    const formattedPsbtTx = addTaprootInternalPubkey({
+      psbt,
+      taprootInternalPubkey: account.taproot.pubkey,
       network: provider.network,
     })
 
     return {
-      psbt: formattedPsbtTx.toBase64(),
+      psbt: formattedPsbtTx.toBase64() as Base64Psbt,
       psbtHex: formattedPsbtTx.toHex(),
     }
   } catch (error) {
