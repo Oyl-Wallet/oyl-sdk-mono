@@ -7,9 +7,9 @@ import * as alkanes from '@oyl/sdk-alkanes'
 import * as utxo from '@oyl/sdk-core'
 import { Wallet } from './wallet'
 import { contractDeployment } from '@oyl/sdk-alkanes'
-import { send, tokenDeployment } from '@oyl/sdk-alkanes'
-import { AlkanesPayload } from '@oyl/sdk-core'
-import { encodeRunestoneProtostone } from '@oyl/sdk-alkanes'
+import { tokenDeployment } from '@oyl/sdk-alkanes'
+import { AlkanesPayload, getAccountSpendableUtxoSet, pushPsbt } from '@oyl/sdk-core'
+import { encodeRunestoneProtostone, createAlkanesExecutePsbt, parseAlkaneId, getAccountAlkaneUtxoSet, createAlkanesSendPsbt } from '@oyl/sdk-alkanes'
 import { ProtoStone } from '@oyl/sdk-alkanes'
 import { encipher } from '@oyl/sdk-alkanes'
 import { metashrew } from '@oyl/sdk-core'
@@ -17,6 +17,8 @@ import { ProtoruneEdict } from '@oyl/sdk-alkanes'
 import { ProtoruneRuneId } from '@oyl/sdk-alkanes'
 import { u128 } from '@magiceden-oss/runestone-lib/dist/src/integer'
 import { packUTF8 } from '@oyl/sdk-core'
+import { splitAlkaneUtxos } from '@oyl/sdk-amm'
+//import * as alkanes_rpc from 'alkanes/lib/rpc';
 /* @dev example call
   oyl alkane trace -params '{"txid":"e6561c7a8f80560c30a113c418bb56bde65694ac2b309a68549f35fdf2e785cb","vout":0}'
 
@@ -255,128 +257,196 @@ export class AlkanesCommand extends Command {
 //     )
 //   })
 
-// /* @dev example call 
-//   oyl alkane execute -data 2,1,77 -e 2:1:333:1
+/* @dev example call 
+  To call opcode 77 (mint) on contract [2,8] (which is a free_mint token contract)
+    oyl-mono alkane execute -data 2,8,77 -feeRate 2 -p oylnet
 
-//   In this example we call a mint (opcode 77) from the [2,1] token. The token
-//   will mint to the wallet calling execute.
+  oyl-mono alkane execute -data 2,1,77 -e 2:1:333:1
 
-//   We also pass the edict 2:1:333:1. That is id [2,1], the amount is 333, and the output is vout 1. 
+  In this example we call a mint (opcode 77) from the [2,1] token. The token
+  will mint to the wallet calling execute.
 
-//   Hint: you can grab the TEST_WALLET's alkanes balance with:
-//   oyl provider alkanes -method getAlkanesByAddress -params '{"address":"bcrt1p5cyxnuxmeuwuvkwfem96lqzszd02n6xdcjrs20cac6yqjjwudpxqvg32hk"}'
-// */
-// export const alkaneExecute = new AlkanesCommand('execute')
-//   .requiredOption(
-//     '-data, --calldata <calldata>',
-//     'op code + params to be called on a contract',
-//     (value: string, previous: string[]) => {
-//       const items = value.split(',')
-//       return previous ? previous.concat(items) : items
-//     },
-//     []
-//   )
-//   .option(
-//     '-e, --edicts <edicts>',
-//     'edicts for protostone',
-//     (value: string, previous: string[]) => {
-//       const items = value.split(',')
-//       return previous ? previous.concat(items) : items
-//     },
-//     []
-//   )
-//   .option(
-//     '-m, --mnemonic <mnemonic>',
-//     '(optional) Mnemonic used for signing transactions (default = TEST_WALLET)'
-//   )
-//   .option(
-//     '-p, --provider <provider>',
-//     'Network provider type (regtest, bitcoin)'
-//   )
-//   .option('-feeRate, --feeRate <feeRate>', 'fee rate')
-//   .action(async (options: any) => {
-//     const wallet: Wallet = new Wallet(options)
+  We also pass the edict 2:1:333:1. That is id [2,1], the amount is 333, and the output is vout 1. 
 
-//     const { accountUtxos } = await utxo.accountUtxos({
-//       account: wallet.account,
-//       provider: wallet.provider,
-//     })
-//     const calldata: bigint[] = options.calldata.map((item: string) => BigInt(item))
+  Hint: you can grab the TEST_WALLET's alkanes balance with:
+  oyl provider alkanes -method getAlkanesByAddress -params '{"address":"bcrt1p5cyxnuxmeuwuvkwfem96lqzszd02n6xdcjrs20cac6yqjjwudpxqvg32hk"}'
+*/
+export const alkaneExecute = new AlkanesCommand('execute')
+  .requiredOption(
+    '-data, --calldata <calldata>',
+    'op code + params to be called on a contract',
+    (value: string, previous: string[]) => {
+      const items = value.split(',')
+      return previous ? previous.concat(items) : items
+    },
+    []
+  )
+  .option(
+    '-e, --edicts <edicts>',
+    'edicts for protostone',
+    (value: string, previous: string[]) => {
+      const items = value.split(',')
+      return previous ? previous.concat(items) : items
+    },
+    []
+  )
+  .option(
+    '-m, --mnemonic <mnemonic>',
+    '(optional) Mnemonic used for signing transactions (default = TEST_WALLET)'
+  )
+  .option(
+    '-p, --provider <provider>',
+    'Network provider type (regtest, bitcoin)'
+  )
+  .option('-feeRate, --feeRate <feeRate>', 'fee rate')
+  .action(async (options: any) => {
+    const wallet: Wallet = new Wallet({ networkType: options.provider })
+    const account = wallet.account
+    const provider = wallet.provider
+    const signer = wallet.signer
+    const amount = options.amount
+    const feeRate = options.feeRate
 
-//     const edicts: ProtoruneEdict[] = options.edicts.map((item: string) => {
-//       const [block, tx, amount, output] = item
-//         .split(':')
-//         .map((part) => part.trim())
-//       return {
-//         id: new ProtoruneRuneId(u128(Number(block)), u128(Number(tx))),
-//         amount: amount ? BigInt(amount) : undefined,
-//         output: output ? Number(output) : undefined,
-//       }
-//     })
-//     const protostone: Buffer = encodeRunestoneProtostone({
-//       protostones: [
-//         ProtoStone.message({
-//           protocolTag: 1n,
-//           edicts,
-//           pointer: 0,
-//           refundPointer: 0,
-//           calldata: encipher(calldata),
-//         }),
-//       ],
-//     }).encodedRunestone
+    let edicts: ProtoruneEdict[] = []
 
-//     console.log(
-//       await alkanes.execute({
-//         protostone,
-//         utxos: accountUtxos,
-//         feeRate: wallet.feeRate,
-//         account: wallet.account,
-//         signer: wallet.signer,
-//         provider: wallet.provider,
-//       })
-//     )
-//   })
+    account.spendStrategy = {
+      addressOrder: ['nativeSegwit', 'taproot'],
+      utxoSortGreatestToLeast: true,
+      changeAddress: 'taproot',
+    }
 
-// /* @dev example call 
-//   oyl alkane send -blk 2 -tx 1 -amt 200 -to bcrt1pkq6ayylfpe5hn05550ry25pkakuf72x9qkjc2sl06dfcet8sg25ql4dm73
+    const { utxos: selectedUtxos } = await getAccountSpendableUtxoSet({
+      account,
+      amount: 546,
+      provider,
+    })
+   
+    const calldata: bigint[] = options.calldata.map((item: string) => BigInt(item))
 
-//   Sends an alkane token amount to a given address (example is sending token with Alkane ID [2, 1]) 
-// */
-// export const alkaneSend = new AlkanesCommand('send')
-//   .requiredOption('-to, --to <to>')
-//   .requiredOption('-amt, --amount <amount>')
-//   .requiredOption('-blk, --block <block>')
-//   .requiredOption('-tx, --txNum <txNum>')
-//   .option(
-//     '-m, --mnemonic <mnemonic>',
-//     '(optional) Mnemonic used for signing transactions (default = TEST_WALLET)'
-//   )
-//   .option(
-//     '-p, --provider <provider>',
-//     'Network provider type (regtest, bitcoin)'
-//   )
-//   .option('-feeRate, --feeRate <feeRate>', 'fee rate')
-//   .action(async (options: any) => {
-//     const wallet: Wallet = new Wallet(options)
+    if (options.edicts.length > 0) {
+      edicts = options.edicts.map((item: string) => {
+        const [block, tx, amount, output] = item
+          .split(':')
+          .map((part) => part.trim())
+        return {
+          id: new ProtoruneRuneId(u128(Number(block)), u128(Number(tx))),
+          amount: amount ? BigInt(amount) : undefined,
+          output: output ? Number(output) : undefined,
+        }
+      })
+    }
 
-//     const { accountUtxos } = await utxo.accountUtxos({
-//       account: wallet.account,
-//       provider: wallet.provider,
-//     })
+    const protostone: Buffer = encodeRunestoneProtostone({
+      protostones: [
+        ProtoStone.message({
+          protocolTag: 1n,
+          edicts,
+          pointer: 0,
+          refundPointer: 0,
+          calldata: encipher(calldata),
+        }),
+      ],
+    }).encodedRunestone
 
-//     console.log(
-//       await send({
-//         utxos: accountUtxos,
-//         alkaneId: { block: options.block, tx: options.txNum },
-//         toAddress: options.to,
-//         amount: Number(options.amount),
-//         account: wallet.account,
-//         signer: wallet.signer,
-//         provider: wallet.provider,
-//         feeRate: wallet.feeRate,
-//       })
-//     )
-//   })
+    const { psbt } = await createAlkanesExecutePsbt({
+      protostone,
+      utxos: selectedUtxos,
+      feeRate,
+      account,
+      provider,
+      })
+
+      const { signedPsbt } = await signer.signAllInputs({
+        rawPsbt: psbt,
+        finalize: true,
+      })
+    
+      const result = await pushPsbt({
+        psbtBase64: signedPsbt,
+        provider,
+      })
+  
+      console.log(result)
+  })
+
+/**
+ *  @dev example call 
+ *  oyl-mono alkane send -alkane "2:8" -amt 500000000 -feeRate 2.5 -to bcrt1pkq6ayylfpe5hn05550ry25pkakuf72x9qkjc2sl06dfcet8sg25ql4dm73
+ * 
+ *  Sends 5 alkane tokens to a given address
+*/
+export const alkaneSend = new AlkanesCommand('send')
+  .requiredOption('-to, --to <to>')
+  .requiredOption('-amt, --amount <amount>')
+  .requiredOption('-alkane, --alkane <alkane>')
+  .option(
+    '-m, --mnemonic <mnemonic>',
+    '(optional) Mnemonic used for signing transactions (default = TEST_WALLET)'
+  )
+  .option(
+    '-p, --provider <provider>',
+    'Network provider type (regtest, bitcoin)'
+  )
+  .option('-feeRate, --feeRate <feeRate>', 'fee rate')
+  .action(async (options: any) => {
+    const wallet: Wallet = new Wallet({ networkType: options.provider })
+    const account = wallet.account
+    const provider = wallet.provider
+    const signer = wallet.signer
+    const address = options.to
+    const alkane = options.alkane
+    const amount = options.amount
+    const feeRate = options.feeRate ?? 2
+
+    account.spendStrategy = {
+      addressOrder: ['taproot'],
+      utxoSortGreatestToLeast: true,
+      changeAddress: 'taproot',
+    }
+
+    const { utxos: selectedUtxos } = await getAccountSpendableUtxoSet({
+      account,
+      amount: 546,
+      provider,
+    })
+   
+    // Find utxos with the given alkane id
+    const tokens = [
+      {id: parseAlkaneId(alkane), amount: BigInt(amount)},
+    ];
+
+    const { utxos: alkanesUtxos } = await getAccountAlkaneUtxoSet({
+      tokens,
+      account,
+      provider,
+    })
+
+    const { psbt, fee, vsize } = await createAlkanesSendPsbt({
+      utxos: selectedUtxos,
+      alkanesUtxos: alkanesUtxos,
+      toAddress: address,
+      alkaneId: parseAlkaneId(alkane),
+      amount,
+      feeRate,
+      account,
+      provider,
+      })
+
+      console.log('Estimated fee: ', fee)
+      console.log('Estimated vsize: ', vsize)
+
+      const { signedPsbt } = await signer.signAllInputs({
+        rawPsbt: psbt,
+        finalize: true,
+      })
+
+      const result = await pushPsbt({
+        psbtBase64: signedPsbt,
+        provider,
+      })
+  
+      console.log(result)
+  })
 
 // /* @dev example call 
 //  oyl alkane create-pool -data "2,1,1" -tokens "2:12:1500,2:29:1500" -feeRate 5 -p oylnet

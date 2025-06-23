@@ -3,6 +3,7 @@ import { EsploraRpc } from './esplora'
 import * as alkanes_rpc from 'alkanes/lib/rpc'
 import { Outpoint } from '..'
 import { metashrew } from './metashrew'
+import { AlkanesOutpoint } from '../types/alkanes'
 
 export const stripHexPrefix = (s: string): string =>
   s.substr(0, 2) === '0x' ? s.substr(2) : s
@@ -68,6 +69,13 @@ export class AlkanesRpc {
     this.esplora = new EsploraRpc(url)
   }
 
+  async _metashrewCall(method: string, params: any[] = []) {
+    const rpc = new alkanes_rpc.AlkanesRpc({ baseUrl: metashrew.get() })
+    return mapToPrimitives(
+      await (rpc[method.split('_')[1] as keyof typeof rpc] as Function)(unmapFromPrimitives(params[0] || {}))
+    )
+  }
+
   async _call(method: string, params: (string | number | boolean | undefined | any)[] = []) {
     const requestData = {
       jsonrpc: '2.0',
@@ -109,8 +117,57 @@ export class AlkanesRpc {
     return await this._call('alkanes::by_height', [params.height, params.protocolTag])
   }
 
-  async getAlkanesByAddress(params: { address: string; protocolTag?: string; name?: string }): Promise<Outpoint[]> {
-    return (await this._call('alkanes_protorunesbyaddress', [{address: params.address, protocolTag: params.protocolTag, name: params.name}])) as Outpoint[]
+  async getAlkanesByAddress({
+    address,
+    protocolTag = '1',
+    name,
+  }: {
+    address: string
+    protocolTag?: string
+    name?: string
+  }): Promise<AlkanesOutpoint[]> {
+    try {
+      const ret = await this._call('alkanes_protorunesbyaddress', [
+        {
+          address,
+          protocolTag,
+        },
+      ])
+
+      const alkanesList = ret.outpoints
+        .filter((outpoint: any) => outpoint.runes.length > 0)
+        .map((outpoint: any) => ({
+          ...outpoint,
+          outpoint: {
+            vout: outpoint.outpoint.vout,
+            txid: Buffer.from(outpoint.outpoint.txid, 'hex')
+              .reverse()
+              .toString('hex'),
+          },
+          runes: outpoint.runes.map((rune: any) => ({
+            ...rune,
+            balance: parseInt(rune.balance, 16).toString(),
+            rune: {
+              ...rune.rune,
+              id: {
+                block: parseInt(rune.rune.id.block, 16).toString(),
+                tx: parseInt(rune.rune.id.tx, 16).toString(),
+              },
+            },
+          })),
+        }))
+
+      if (name) {
+        return alkanesList.flatMap((outpoints: any) =>
+          outpoints.runes.filter((item: any) => item.rune.name === name)
+        )
+      }
+
+      return alkanesList
+    } catch (error) {
+      console.error('Error in getAlkanesByAddress:', error)
+      throw error
+    }
   }
 
   async getAlkanesByOutpoint(params: { txid: string; vout: number; protocolTag?: string; height?: string }): Promise<any> {
@@ -143,13 +200,6 @@ export class AlkanesRpc {
 
   async meta(request: Partial<any>, decoder?: any): Promise<any> {
     return await this._call('alkane::meta', [request, decoder])
-  }
-
-  async _metashrewCall(method: string, params: any[] = []) {
-    const rpc = new alkanes_rpc.AlkanesRpc({ baseUrl: metashrew.get() })
-    return mapToPrimitives(
-      await (rpc[method.split('_')[1] as keyof typeof rpc] as Function)(unmapFromPrimitives(params[0] || {}))
-    )
   }
 
   parsePoolInfo(hexData: string) {

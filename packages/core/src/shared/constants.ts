@@ -6,6 +6,8 @@ import * as path from 'path'
 dotenv.config({ path: path.resolve(__dirname, '../../../../.env') })
 
 export const BTC_DUST_AMOUNT = 295
+export const MIN_RELAY_FEE = 546
+export const INSCRIPTION_SATS = 330
 export const DEFAULT_SEND_FEE = 546
 
 export const UTXO_ASSET_SAT_THRESHOLD = 1000

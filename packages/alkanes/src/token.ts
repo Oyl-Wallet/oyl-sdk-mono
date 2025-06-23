@@ -3,27 +3,192 @@ import { ProtoStone, encodeRunestoneProtostone } from 'alkanes/lib/index.js'
 import { ProtoruneRuneId } from 'alkanes/lib/protorune/protoruneruneid'
 import * as bitcoin from 'bitcoinjs-lib'
 import {
+  addUtxoInputs,
+  BTC_DUST_AMOUNT,
+  DEFAULT_SEND_FEE,
+  INSCRIPTION_SATS,
   Account,
   Signer,
   Provider,
   AlkanesPayload,
   OylTransactionError,
-  AlkaneId,
   timeout,
   findXAmountOfSats,
-  inscriptionSats,
   addTaprootInternalPubkey,
   getAddressType,
   minimumFee,
   FormattedUtxo,
   GatheredUtxos,
-  selectAlkanesUtxos,
-  selectSpendableUtxos,
   getPsbtFee,
   pushPsbt,
   Base64Psbt,
 } from '@oyl/sdk-core'
 import { deployCommit, deployReveal } from './alkanes'
+
+
+export const alkanesSendPsbt = async ({
+  utxos,
+  alkanesUtxos,
+  toAddress,
+  alkaneId,
+  amount,
+  fee,
+  account,
+  provider
+}: {
+  utxos: FormattedUtxo[]
+  alkanesUtxos: FormattedUtxo[]
+  toAddress: string
+  alkaneId: { block: string; tx: string }
+  amount: number
+  fee: number
+  account: Account
+  provider: Provider
+}): Promise<{ psbt: Base64Psbt }> => {
+  try {
+    if (!utxos?.length) {
+      throw new OylTransactionError(new Error('No utxos provided'))
+    }
+    if (!fee) {
+      throw new OylTransactionError(new Error('No fee provided'))
+    }
+
+    const psbt: bitcoin.Psbt = new bitcoin.Psbt({
+      network: provider.getNetwork(),
+    })
+
+    await addUtxoInputs({
+      psbt,
+      utxos,
+      esploraProvider: provider.esplora,
+    })
+
+    const totalUtxoInputAmount = utxos.reduce((sum, utxo) => sum + utxo.satoshis, 0)
+
+    let totalAlkanesInputAmount = 0
+
+    if (alkanesUtxos) {
+      await addUtxoInputs({
+        psbt,
+        utxos: alkanesUtxos,
+        esploraProvider: provider.esplora,
+      })
+      totalAlkanesInputAmount = alkanesUtxos.reduce((sum, utxo) => sum + utxo.satoshis, 0)
+    }
+
+    const protostone = encodeRunestoneProtostone({
+      protostones: [
+        ProtoStone.message({
+          protocolTag: 1n,
+          edicts: [
+            {
+              id: new ProtoruneRuneId(
+                u128(BigInt(alkaneId.block)),
+                u128(BigInt(alkaneId.tx))
+              ),
+              amount: u128(BigInt(amount)),
+              output: u32(BigInt(1)),
+            },
+          ],
+          pointer: 0,
+          refundPointer: 0,
+          calldata: Buffer.from([]),
+        }),
+      ],
+    }).encodedRunestone
+
+    psbt.addOutput({
+      value: INSCRIPTION_SATS,
+      address: account.taproot.address,
+    })
+
+    psbt.addOutput({
+      value: INSCRIPTION_SATS,
+      address: toAddress,
+    })
+
+    psbt.addOutput({ script: protostone, value: 0 })
+
+    const changeAmount = totalUtxoInputAmount + totalAlkanesInputAmount - (INSCRIPTION_SATS * 2) - fee
+
+    if (changeAmount < 0) {
+      throw new OylTransactionError(Error('Insufficient Balance'))
+    }
+    
+    if (changeAmount > BTC_DUST_AMOUNT) {
+      psbt.addOutput({
+        address: account[account.spendStrategy.changeAddress].address,
+        value: changeAmount,
+      })
+    }
+
+    const formatted = addTaprootInternalPubkey({
+      psbt,
+      taprootInternalPubkey: account.taproot.pubkey,
+      network: provider.getNetwork(),
+    })
+
+    return { psbt: formatted.toBase64() as Base64Psbt }
+  } catch (err) {
+    throw new OylTransactionError(err as Error)
+  }
+}
+
+export const createAlkanesSendPsbt = async ({
+  utxos,
+  alkanesUtxos,
+  toAddress,
+  alkaneId,
+  amount,
+  feeRate,
+  account,
+  provider,
+}: {
+  utxos: FormattedUtxo[]
+  alkanesUtxos: FormattedUtxo[]
+  toAddress: string
+  alkaneId: { block: string; tx: string }
+  amount: number
+  feeRate: number
+  account: Account
+  provider: Provider
+}) => {
+// First create a psbt with a minimum fee
+  const { psbt } = await alkanesSendPsbt({
+    utxos,
+    alkanesUtxos,
+    toAddress,
+    alkaneId,
+    amount,
+    fee: DEFAULT_SEND_FEE,
+    account,
+    provider,
+  })
+  
+
+  // Then use the target feeRate to get the actual fee for the psbt
+  const { fee, vsize } = getPsbtFee({
+    feeRate,
+    psbt,
+    provider,
+  })
+
+  // Reconstruct the psbt with the actual fee
+  const { psbt: finalPsbt } = await alkanesSendPsbt({
+    utxos,
+    alkanesUtxos,
+    toAddress,
+    alkaneId,
+    amount,
+    fee,
+    account,
+    provider,
+  })
+
+  return { psbt: finalPsbt, fee, vsize }
+}
+
+
 
 
 export const tokenDeployment = async ({
@@ -65,330 +230,6 @@ export const tokenDeployment = async ({
   })
 
   return { ...reveal, commitTx: txId }
-}
-
-export const createSendPsbt = async ({
-  utxos,
-  account,
-  alkaneId,
-  provider,
-  toAddress,
-  amount,
-  feeRate,
-  fee,
-}: {
-  utxos: FormattedUtxo[]
-  account: Account
-  alkaneId: { block: string; tx: string }
-  provider: Provider
-  toAddress: string
-  amount: number
-  feeRate?: number
-  fee?: number
-}): Promise<{ psbt: Base64Psbt }> => {
-  try {
-    let gatheredUtxos = selectSpendableUtxos(utxos, account.spendStrategy)
-
-    const minFee = minimumFee({
-      taprootInputCount: 2,
-      nonTaprootInputCount: 0,
-      outputCount: 3,
-    })
-    const calculatedFee = minFee * feeRate! < 250 ? 250 : minFee * feeRate!
-    let finalFee = fee ? fee : calculatedFee
-
-    gatheredUtxos = findXAmountOfSats(
-      [...gatheredUtxos.utxos],
-      Number(finalFee) + Number(inscriptionSats)
-    )
-
-    if (gatheredUtxos.utxos.length > 1) {
-      const txSize = minimumFee({
-        taprootInputCount: gatheredUtxos.utxos.length,
-        nonTaprootInputCount: 0,
-        outputCount: 3,
-      })
-
-      finalFee = Math.max(txSize * feeRate!, 250)
-      gatheredUtxos = findXAmountOfSats(
-        [...gatheredUtxos.utxos],
-        Number(finalFee) + Number(inscriptionSats)
-      )
-    }
-
-    let psbt = new bitcoin.Psbt({ network: provider.getNetwork() })
-
-    const alkanesUtxos = await selectAlkanesUtxos({
-      utxos,
-      alkaneId,
-      greatestToLeast: account.spendStrategy.utxoSortGreatestToLeast,
-      targetNumberOfAlkanes: amount,
-    })
-
-    if (alkanesUtxos.utxos.length === 0) {
-      throw new OylTransactionError(Error('No Alkane Utxos Found'))
-    }
-
-    for await (const utxo of alkanesUtxos.utxos) {
-      if (getAddressType(utxo.address) === 0) {
-        const previousTxHex: string = await provider.esplora.getTxHex(utxo.txId)
-        psbt.addInput({
-          hash: utxo.txId,
-          index: utxo.outputIndex,
-          nonWitnessUtxo: Buffer.from(previousTxHex, 'hex'),
-        })
-      }
-      if (getAddressType(utxo.address) === 2) {
-        const redeemScript = bitcoin.script.compile([
-          bitcoin.opcodes.OP_0,
-          bitcoin.crypto.hash160(
-            Buffer.from(account.nestedSegwit.pubkey, 'hex')
-          ),
-        ])
-
-        psbt.addInput({
-          hash: utxo.txId,
-          index: utxo.outputIndex,
-          redeemScript: redeemScript,
-          witnessUtxo: {
-            value: utxo.satoshis,
-            script: bitcoin.script.compile([
-              bitcoin.opcodes.OP_HASH160,
-              bitcoin.crypto.hash160(redeemScript),
-              bitcoin.opcodes.OP_EQUAL,
-            ]),
-          },
-        })
-      }
-      if (
-        getAddressType(utxo.address) === 1 ||
-        getAddressType(utxo.address) === 3
-      ) {
-        psbt.addInput({
-          hash: utxo.txId,
-          index: utxo.outputIndex,
-          witnessUtxo: {
-            value: utxo.satoshis,
-            script: Buffer.from(utxo.scriptPk, 'hex'),
-          },
-        })
-      }
-    }
-
-    if (gatheredUtxos.totalAmount < finalFee + inscriptionSats * 2) {
-      throw new OylTransactionError(Error('Insufficient Balance'))
-    }
-
-    for (let i = 0; i < gatheredUtxos.utxos.length; i++) {
-      if (getAddressType(gatheredUtxos.utxos[i].address) === 0) {
-        const previousTxHex: string = await provider.esplora.getTxHex(
-          gatheredUtxos.utxos[i].txId
-        )
-        psbt.addInput({
-          hash: gatheredUtxos.utxos[i].txId,
-          index: gatheredUtxos.utxos[i].outputIndex,
-          nonWitnessUtxo: Buffer.from(previousTxHex, 'hex'),
-        })
-      }
-      if (getAddressType(gatheredUtxos.utxos[i].address) === 2) {
-        const redeemScript = bitcoin.script.compile([
-          bitcoin.opcodes.OP_0,
-          bitcoin.crypto.hash160(
-            Buffer.from(account.nestedSegwit.pubkey, 'hex')
-          ),
-        ])
-
-        psbt.addInput({
-          hash: gatheredUtxos.utxos[i].txId,
-          index: gatheredUtxos.utxos[i].outputIndex,
-          redeemScript: redeemScript,
-          witnessUtxo: {
-            value: gatheredUtxos.utxos[i].satoshis,
-            script: bitcoin.script.compile([
-              bitcoin.opcodes.OP_HASH160,
-              bitcoin.crypto.hash160(redeemScript),
-              bitcoin.opcodes.OP_EQUAL,
-            ]),
-          },
-        })
-      }
-      if (
-        getAddressType(gatheredUtxos.utxos[i].address) === 1 ||
-        getAddressType(gatheredUtxos.utxos[i].address) === 3
-      ) {
-        psbt.addInput({
-          hash: gatheredUtxos.utxos[i].txId,
-          index: gatheredUtxos.utxos[i].outputIndex,
-          witnessUtxo: {
-            value: gatheredUtxos.utxos[i].satoshis,
-            script: Buffer.from(gatheredUtxos.utxos[i].scriptPk, 'hex'),
-          },
-        })
-      }
-    }
-
-    const protostone = encodeRunestoneProtostone({
-      protostones: [
-        ProtoStone.message({
-          protocolTag: 1n,
-          edicts: [
-            {
-              id: new ProtoruneRuneId(
-                u128(BigInt(alkaneId.block)),
-                u128(BigInt(alkaneId.tx))
-              ),
-              amount: u128(BigInt(amount)),
-              output: u32(BigInt(1)),
-            },
-          ],
-          pointer: 0,
-          refundPointer: 0,
-          calldata: Buffer.from([]),
-        }),
-      ],
-    }).encodedRunestone
-
-    psbt.addOutput({
-      value: inscriptionSats,
-      address: account.taproot.address,
-    })
-
-    psbt.addOutput({
-      value: inscriptionSats,
-      address: toAddress,
-    })
-
-    const output = { script: protostone, value: 0 }
-
-    psbt.addOutput(output)
-    const changeAmount =
-      gatheredUtxos.totalAmount +
-      alkanesUtxos.totalAmount -
-      (finalFee + inscriptionSats * 2)
-
-    psbt.addOutput({
-      address: account[account.spendStrategy.changeAddress].address,
-      value: changeAmount,
-    })
-
-    const formattedPsbtTx = addTaprootInternalPubkey({
-      psbt,
-      taprootInternalPubkey: account.taproot.pubkey,
-      network: provider.getNetwork(),
-    })
-
-    return { psbt: formattedPsbtTx.toBase64() as Base64Psbt }
-  } catch (error) {
-    throw new OylTransactionError(error as Error)
-  }
-}
-
-export const send = async ({
-  utxos,
-  toAddress,
-  amount,
-  alkaneId,
-  feeRate,
-  account,
-  provider,
-  signer,
-}: {
-  utxos: FormattedUtxo[]
-  toAddress: string
-  amount: number
-  alkaneId: AlkaneId
-  feeRate?: number
-  account: Account
-  provider: Provider
-  signer: Signer
-}) => {
-  const effectiveFeeRate = feeRate ?? (await provider.esplora.getFeeEstimates())['1']
-
-  const { fee } = await actualSendFee({
-    utxos,
-    account,
-    alkaneId,
-    amount,
-    provider,
-    toAddress,
-    feeRate: effectiveFeeRate,
-  })
-
-  const { psbt: finalPsbt } = await createSendPsbt({
-    utxos,
-    account,
-    alkaneId,
-    amount,
-    provider,
-    toAddress,
-    feeRate: effectiveFeeRate,
-    fee,
-  })
-
-  const { signedPsbt } = await signer.signAllInputs({
-    rawPsbt: finalPsbt,
-    finalize: true,
-  })
-
-  const result = await pushPsbt({
-    psbtBase64: signedPsbt,
-    provider,
-  })
-
-  return result
-}
-
-export const actualSendFee = async ({
-  utxos,
-  account,
-  alkaneId,
-  provider,
-  toAddress,
-  amount,
-  feeRate,
-}: {
-  utxos: FormattedUtxo[]
-  account: Account
-  alkaneId: { block: string; tx: string }
-  provider: Provider
-  toAddress: string
-  amount: number
-  feeRate: number
-}) => {
-  const { psbt } = await createSendPsbt({
-    utxos,
-    account,
-    alkaneId,
-    provider,
-    toAddress,
-    amount,
-    feeRate,
-  })
-
-  const { fee: estimatedFee } = getPsbtFee({
-    feeRate,
-    psbt,
-    provider,
-  })
-
-  const { psbt: finalPsbt } = await createSendPsbt({
-    utxos,
-    account,
-    alkaneId,
-    provider,
-    toAddress,
-    amount,
-    feeRate,
-    fee: estimatedFee,
-  })
-
-  const { fee: finalFee, vsize } = getPsbtFee({
-    feeRate,
-    psbt: finalPsbt,
-    provider,
-  })
-
-  return { fee: finalFee, vsize }
 }
 
 export const split = async ({

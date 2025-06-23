@@ -1,8 +1,6 @@
-import { encipher } from '@oyl/sdk-alkanes'
-import { encodeRunestoneProtostone, executePsbt } from '@oyl/sdk-alkanes'
-import { ProtoStone } from '@oyl/sdk-alkanes'
+import { createAlkanesExecutePsbt, encipher, encodeRunestoneProtostone } from '@oyl/sdk-alkanes'
+import { ProtoStone, AlkaneId } from '@oyl/sdk-alkanes'
 import { Account, OylTransactionError, Provider, Signer, pushPsbt } from '@oyl/sdk-core'
-import { AlkaneId } from '@oyl/sdk-alkanes'
 import { u128, u32 } from '@magiceden-oss/runestone-lib/dist/src/integer'
 import { ProtoruneEdict } from '@oyl/sdk-alkanes'
 import { ProtoruneRuneId } from '@oyl/sdk-alkanes'
@@ -138,7 +136,7 @@ export const addLiquidityPsbt = async ({
     ],
   }).encodedRunestone
 
-  const { psbt, fee } = await executePsbt({
+  const { psbt, fee } = await createAlkanesExecutePsbt({
     utxos,
     alkanesUtxos,
     protostone,
@@ -289,7 +287,7 @@ export const removeLiquidityPsbt = async ({
     ],
   }).encodedRunestone
 
-  const { psbt, fee } = await executePsbt({
+  const { psbt, fee } = await createAlkanesExecutePsbt({
     alkanesUtxos: tokenUtxos[0].utxos,
     protostone,
     utxos,
@@ -351,7 +349,7 @@ export const swapPsbt = async ({
   feeRate,
   account,
   provider,
-  frontendFee,
+  appFee,
   feeAddress,
 }: {
   calldata: bigint[]
@@ -361,7 +359,7 @@ export const swapPsbt = async ({
   feeRate: number
   account: Account
   provider: Provider
-  frontendFee?: bigint
+  appFee?: bigint
   feeAddress?: string
 }) => {
   if (tokenAmount <= 0n) {
@@ -375,9 +373,9 @@ export const swapPsbt = async ({
     alkaneId: token,
   })
 
-  // If there is a frontendFee, there is an extra utxo
+  // If there is a appFee, there is an extra utxo
   const MIN_RELAY = 546n
-  const virtualOut = feeAddress && frontendFee && frontendFee >= MIN_RELAY ? 6 : 5
+  const virtualOut = feeAddress && appFee && appFee >= MIN_RELAY ? 6 : 5
 
   const edicts: ProtoruneEdict[] = [
     {
@@ -415,16 +413,16 @@ export const swapPsbt = async ({
     feeRate,
     account,
     provider,
-    frontendFee: undefined as bigint | undefined,
+    appFee: undefined as bigint | undefined,
     feeAddress: undefined as string | undefined,
   }
 
-  if (frontendFee && feeAddress) {
-    psbtOptions.frontendFee = frontendFee
+  if (appFee && feeAddress) {
+    psbtOptions.appFee = appFee
     psbtOptions.feeAddress = feeAddress
   }
 
-  const { psbt, fee } = await executePsbt(psbtOptions)
+  const { psbt, fee } = await createAlkanesExecutePsbt(psbtOptions)
 
   return { psbt, fee }
 }
@@ -438,7 +436,7 @@ export const swap = async ({
   account,
   signer,
   provider,
-  frontendFee,
+  appFee,
   feeAddress,
 }: {
   calldata: bigint[]
@@ -449,7 +447,7 @@ export const swap = async ({
   account: Account
   provider: Provider
   signer: Signer
-  frontendFee?: bigint
+  appFee?: bigint
   feeAddress?: string
 }) => {
   const { psbt } = await swapPsbt({
@@ -460,7 +458,7 @@ export const swap = async ({
     feeRate,
     account,
     provider,
-    frontendFee,
+    appFee,
     feeAddress,
   })
 

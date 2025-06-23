@@ -5,6 +5,10 @@ import { init, genBlocks, sendFromFaucet } from './regtest'
 import { runeSend, runeMint, runeEtchCommit, runeEtchReveal } from './rune'
 import { brc20Send } from './brc20'
 import { btcSend } from './btc'
+import { 
+  alkaneExecute,
+  alkaneSend,
+} from './alkane'
 import {
   accountAvailableBalance,
   accountUtxosToSpend,
@@ -71,13 +75,13 @@ const runeCommand = new Command('rune')
   .addCommand(runeMint)
   .addCommand(runeEtchCommit)
   .addCommand(runeEtchReveal)
-// const alkaneCommand = new Command('alkane')
+const alkaneCommand = new Command('alkane')
 //   .description('Functions for alkanes')
 //   .addCommand(alkaneContractDeploy)
-//   .addCommand(alkaneExecute)
+  .addCommand(alkaneExecute)
 //   .addCommand(alkaneTokenDeploy)
 //   .addCommand(alkanesTrace)
-//   .addCommand(alkaneSend)
+   .addCommand(alkaneSend)
 //   .addCommand(alkaneCreatePool)
 //   .addCommand(alkaneAddLiquidity)
 //   .addCommand(alkaneRemoveLiquidity)
@@ -94,7 +98,7 @@ const providerCommand = new Command('provider')
   .addCommand(alkanesProvider)
 
 program.addCommand(regtestCommand)
-//program.addCommand(alkaneCommand)
+program.addCommand(alkaneCommand)
 program.addCommand(utxosCommand)
 program.addCommand(accountCommand)
 program.addCommand(btcCommand)

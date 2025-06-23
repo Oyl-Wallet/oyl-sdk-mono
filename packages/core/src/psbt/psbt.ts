@@ -48,53 +48,57 @@ export const addUtxoInputs = async ({
   utxos: FormattedUtxo[]
   esploraProvider: EsploraRpc
 }) => {
-  for (let i = 0; i < utxos.length; i++) {
-    if (getAddressType(utxos[i].address) === AddressType.P2PKH) {
-      const previousTxHex: string = await esploraProvider.getTxHex(
-        utxos[i].txId
-      )
-      psbt.addInput({
-        hash: utxos[i].txId,
-        index: utxos[i].outputIndex,
-        nonWitnessUtxo: Buffer.from(previousTxHex, 'hex'),
-      })
-    }
-    if (getAddressType(utxos[i].address) === AddressType.P2SH_P2WPKH) {
-      const publicKey = extractPublicKeyFromNestedSegwit(utxos[i].txId, utxos[i].outputIndex);
-      if (!publicKey) {
-        throw new OylTransactionError(new Error('Public key not found'))
+  for (const utxo of utxos) {
+    const type = getAddressType(utxo.address);
+    switch (type) {
+      case AddressType.P2PKH: {
+        // legacy
+        const previousTxHex: string = await esploraProvider.getTxHex(utxo.txId)
+        psbt.addInput({
+          hash: utxo.txId,
+          index: +utxo.outputIndex,
+          nonWitnessUtxo: Buffer.from(previousTxHex, 'hex'),
+        })
+        break;
       }
-      const redeemScript = bitcoin.script.compile([
-        bitcoin.opcodes.OP_0,
-        bitcoin.crypto.hash160(publicKey),
-      ])
-
-      psbt.addInput({
-        hash: utxos[i].txId,
-        index: utxos[i].outputIndex,
-        redeemScript: redeemScript,
-        witnessUtxo: {
-          value: utxos[i].satoshis,
-          script: bitcoin.script.compile([
-            bitcoin.opcodes.OP_HASH160,
-            bitcoin.crypto.hash160(redeemScript),
-            bitcoin.opcodes.OP_EQUAL,
-          ]),
-        },
-      })
-    }
-    if (
-      getAddressType(utxos[i].address) === AddressType.P2WPKH ||
-      getAddressType(utxos[i].address) === AddressType.P2TR
-    ) {
-      psbt.addInput({
-        hash: utxos[i].txId,
-        index: utxos[i].outputIndex,
-        witnessUtxo: {
-          value: utxos[i].satoshis,
-          script: Buffer.from(utxos[i].scriptPk, 'hex'),
-        },
-      })
+      case AddressType.P2SH_P2WPKH: {
+        // nested segwit
+        const publicKey = extractPublicKeyFromNestedSegwit(utxo.txId, utxo.outputIndex);
+        if (!publicKey) {
+          throw new OylTransactionError(new Error('Public key not found'))
+        }
+        const redeemScript = bitcoin.script.compile([
+          bitcoin.opcodes.OP_0,
+          bitcoin.crypto.hash160(publicKey),
+        ])
+        psbt.addInput({
+          hash: utxo.txId,
+          index: +utxo.outputIndex,
+          redeemScript: redeemScript,
+          witnessUtxo: {
+            value: utxo.satoshis,
+            script: bitcoin.script.compile([
+              bitcoin.opcodes.OP_HASH160,
+              bitcoin.crypto.hash160(redeemScript),
+              bitcoin.opcodes.OP_EQUAL,
+            ]),
+          },
+        })
+        break
+      }
+      case AddressType.P2WPKH: 
+      case AddressType.P2TR:
+      default: {
+        psbt.addInput({
+          hash: utxo.txId,
+          index: +utxo.outputIndex,
+          witnessUtxo: {
+            value: utxo.satoshis,
+            script: Buffer.from(utxo.scriptPk, 'hex'),
+          },
+        })
+        break;  
+      }
     }
   }
 }

@@ -3,6 +3,11 @@ export interface AlkaneId {
   tx: string
 }
 
+export interface TokenWithAmount {
+  id: AlkaneId
+  amount: bigint
+}
+
 export interface Rune {
   rune: {
     id: { block: string; tx: string }

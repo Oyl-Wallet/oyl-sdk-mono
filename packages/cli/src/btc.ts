@@ -6,7 +6,7 @@ import { getAccountSpendableUtxoSet } from '@oyl/sdk-core'
 
 /**
  * @dev example call 
- * oyl btc send -t bcrt1qzr9vhs60g6qlmk7x3dd7g3ja30wyts48sxuemv -amt 1000 -feeRate 2 -p regtest 
+ * oyl-mono btc send -t bcrt1qzr9vhs60g6qlmk7x3dd7g3ja30wyts48sxuemv -amt 1000 -feeRate 2 -p regtest 
  */
 export const btcSend = new Command('send')
   .requiredOption(
